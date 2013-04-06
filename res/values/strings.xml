@@ -3,7 +3,7 @@
     <string name="app_name">Checkout</string>
     <string name="action_options">Options</string>
     <string name="hello_world">Hello world!</string>
-    <string name="search_hint">Enter Keywords or Leave Blank</string>
+    <string name="search_hint">Enter Keywords</string>
     <string name="title_search">Search Local Tweets</string>
     <string-array name="languages_array">
         <item>English</item>
@@ -13,8 +13,8 @@
         <item>mi</item>
         <item>km</item>
     </string-array>
-    <string name="title_radius">How large the area is?</string>
-    <string name="title_language">In what language?</string>
-    <string name="title_location">At what location?</string>
-    <string name="title_search_keywords">Any search key words?</string>
+    <string name="title_radius">Search Area</string>
+    <string name="title_language">Set Language</string>
+    <string name="title_location">Set Location</string>
+    <string name="title_search_keywords">Key Words</string>
 </resources>
