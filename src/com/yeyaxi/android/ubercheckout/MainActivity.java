@@ -1,15 +1,22 @@
 package com.yeyaxi.android.ubercheckout;
 
-import android.os.Bundle;
+
+
+
 import android.app.Activity;
+import android.os.Bundle;
 import android.view.Menu;
+import android.view.MenuItem;
 
 public class MainActivity extends Activity {
-
+	private RibbonMenuView rbmView;
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+		/** Menu **/
+		rbmView = (RibbonMenuView) findViewById(R.id.ribbonMenuView);
 	}
 
 	@Override
@@ -19,4 +26,16 @@ public class MainActivity extends Activity {
 		return true;
 	}
 
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+	    // Handle item selection
+	    switch (item.getItemId()) {
+	        case R.id.new_game:
+	            newGame();
+	            return true;
+	        
+	        default:
+	            return super.onOptionsItemSelected(item);
+	    }
+	}
 }
