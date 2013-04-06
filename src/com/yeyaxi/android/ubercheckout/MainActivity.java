@@ -17,6 +17,8 @@ public class MainActivity extends Activity {
 		setContentView(R.layout.activity_main);
 		/** Menu **/
 		rbmView = (RibbonMenuView) findViewById(R.id.ribbonMenuView);
+		// Hide the slide menu
+//		rbmView.setVisibility(View.GONE);
 	}
 
 	@Override
@@ -30,8 +32,8 @@ public class MainActivity extends Activity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 	    // Handle item selection
 	    switch (item.getItemId()) {
-	        case R.id.new_game:
-	            newGame();
+	        case R.id.action_options:
+	            rbmView.toggleMenu();
 	            return true;
 	        
 	        default:
