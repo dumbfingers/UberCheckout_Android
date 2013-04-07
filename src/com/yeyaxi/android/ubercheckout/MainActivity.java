@@ -274,7 +274,7 @@ public class MainActivity extends Activity {
 		Log.i(TAG, Integer.toString(seekBar_radius.getProgress()));
 		if (spinner_language.getSelectedItem().toString().equals(" ") == true &&
 				seekBar_radius.getProgress() == 0) {
-			//TODO finish the search term
+			// finish the search term
 			Log.i(TAG, "in this clause");
 		} else if (seekBar_radius.getProgress() > 0) {
 			//TODO Search with radius
@@ -467,9 +467,11 @@ public class MainActivity extends Activity {
 
     	@Override
     	protected void onPostExecute(ArrayList<Result> list) {
+    		super.onPostExecute(list);
     		Log.i(TAG, "Test");
     		// Put markers on the map
-    		new DrawTweetMarkers().execute(list);
+    		DrawTweetMarkers task = new DrawTweetMarkers();
+    		task.execute(list);
     	}
 
     	private ArrayList<Result> readTwitterFeed(String searchString) {
@@ -531,14 +533,22 @@ public class MainActivity extends Activity {
 			reader.beginObject();
     		while (reader.hasNext()) {
     			String name = reader.nextName();
-    			if (name.equals("from_user"))
+    			if (name.equals("from_user")){
+    				
     				from_user = reader.nextString();
-    			else if (name.equals("from_user_id_str"))
+    				Log.i(TAG, from_user);
+    			} else if (name.equals("from_user_id_str")) {
+    				
     				from_user_id_str = reader.nextString();
-    			else if (name.equals("from_user_name"))
+    				Log.i(TAG, from_user_id_str);
+    			} else if (name.equals("from_user_name")) {
+    				
     				from_user_name = reader.nextString();
-    			else if (name.equals("geo")) {
+    				Log.i(TAG, from_user_name);
+    			} else if (name.equals("geo")) {
+    				
     				reader.beginObject();
+    				
     				while(reader.hasNext()) {
 //    					String s = reader.nextName();
     					if (name.equals("coordinates")) {
@@ -548,19 +558,30 @@ public class MainActivity extends Activity {
     						while (reader.hasNext()) {
     							latitude = reader.nextDouble();
     							longitude = reader.nextDouble();
+    							Log.i(TAG, latitude + ", " + longitude);
     							geo = new Geo(latitude, longitude);
     						}
+						} else {
+							reader.skipValue();
 						}
     				}
-    				reader.endArray();
     				reader.endObject();
-    			}
-    			else if (name.equals("profile_image_url"))
+//    				reader.endArray();
+//    				reader.endObject();
+    				
+    			} else if (name.equals("profile_image_url")) {
+    				
     				profile_image_url = new URL(reader.nextString());
-    			else if (name.equals("text"))
+    				
+    			} else if (name.equals("text")) {
+    				
     				text = reader.nextString();
-    			else
+    				Log.i(TAG, text);
+    			} else {
+    				
     				reader.skipValue();
+    				
+    			}
 
     		}
     		reader.endObject();
