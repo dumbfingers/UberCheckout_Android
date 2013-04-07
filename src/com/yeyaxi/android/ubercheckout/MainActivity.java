@@ -1,6 +1,20 @@
 package com.yeyaxi.android.ubercheckout;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.ref.WeakReference;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -14,6 +28,7 @@ import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -42,6 +57,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.yeyaxi.android.ubercheckout.utilities.Constant;
+import com.yeyaxi.android.ubercheckout.utilities.ParseJSON;
 /**
  * 
  * @author Yaxi Ye
@@ -58,9 +74,9 @@ public class MainActivity extends Activity {
 	private RadioButton radio_mi;
 	private Spinner spinner_language;
 	
-	private static Handler mHandler;
+//	private static Handler mHandler;
 	private LocationManager mLocationManager;
-	private static final int LOAD_COORD = 2;
+	private static final int SEARCH_TWEETS = 2;
 	private static final int DRAW_MARKER = 1;
     private static final int TEN_SECONDS = 10000;
     private static final int TEN_METERS = 10;
@@ -84,7 +100,7 @@ public class MainActivity extends Activity {
 		//Set up map view
 		map = ((MapFragment) getFragmentManager().findFragmentById(R.id.map)).getMap();
 		
-		mHandler = new LocationHandler(this); 
+//		mHandler = new TaskHandler(this); 
 
 		mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 		
@@ -122,15 +138,8 @@ public class MainActivity extends Activity {
 			}
 		});
 
-
-	    // Get the intent, verify the action and get the query
-	    Intent intent = getIntent();
-	    if (Intent.ACTION_SEARCH.equals(intent.getAction())) {
-	      String keywords = intent.getStringExtra(SearchManager.QUERY);
-	      // Do Search
-	      performSearch(keywords);
-	    }
-	    // Init the value of seek bar as 0
+	    // Init the value of seek bar as 20
+	    seekBar_radius.setIndeterminate(false);
 	    seekBar_radius.setProgress(20);
 	    seekBar_radius.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
 			
@@ -181,9 +190,10 @@ public class MainActivity extends Activity {
 		};
 
 		map.setOnMarkerDragListener(markerDragListener);
-		
+			   
 	}
 	
+
 	@Override
 	protected void onStart() {
 		super.onStart();
@@ -213,6 +223,17 @@ public class MainActivity extends Activity {
 		Log.i(TAG, "Location updates stopped.");
 	}
 	
+	 @Override
+	 protected void onNewIntent(Intent intent) {
+		 // Get the intent, verify the action and get the query
+		 if (Intent.ACTION_SEARCH.equals(intent.getAction())) {
+		      String keywords = intent.getStringExtra(SearchManager.QUERY);
+		      // Do Search in a separate thread
+		      
+		      performSearch(keywords);
+		    }
+	 }
+	
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
@@ -239,20 +260,26 @@ public class MainActivity extends Activity {
 	    }
 	}
 	
-	private void performSearch(String keywords) {
+	public void performSearch(String keywords) {
 		// Check if we need to append some search parameters
+		Log.i(TAG, Integer.toString(seekBar_radius.getProgress()));
 		if (spinner_language.getSelectedItem().toString().equals(" ") == true &&
 				seekBar_radius.getProgress() == 0) {
 			//TODO finish the search term
+			Log.i(TAG, "in this clause");
 		} else if (seekBar_radius.getProgress() > 0) {
 			//TODO Search with radius
 			String unit = radio_km.isChecked() ? "km" : "mi";
 			String query = Constant.BASE_SEARCH_URL + keywords + 
 					"&geocode=" + coords[0] + "," + coords[1] + "," + seekBar_radius.getProgress() + unit;
-			
+			Log.i(TAG, query);
+			new PerformSearch().execute(query);
 		}
 			
 	}
+	
+	
+
 	
 	private void getCurrentLocation() {
 		// Show mapview, drop position pin
@@ -324,7 +351,8 @@ public class MainActivity extends Activity {
 	private void updateUIwithLocation(Location location) {
 
 //		Message.obtain(mHandler, UPDATE_LATLNG, location.getLatitude() + ", " + location.getLongitude()).sendToTarget();
-		Message.obtain(mHandler, DRAW_MARKER, location).sendToTarget();
+//		Message.obtain(mHandler, DRAW_MARKER, location).sendToTarget();
+		new LocationUpdate().execute(location);
 	}
 	
 	private final LocationListener geoListener = new LocationListener() {
@@ -372,54 +400,141 @@ public class MainActivity extends Activity {
     	.create();
     }
     
+    private class PerformSearch extends AsyncTask<String, Void, String> {
+
+
+		@Override
+		protected String doInBackground(String... params) {
+			parseJSON(params[0]);
+			return null;
+		}
+    	
+		
+		@Override
+		protected void onPostExecute(String s) {
+			
+		}
+		
+		
+		private void parseJSON (String searchString) {
+			String readTwitterFeed = readTwitterFeed(searchString);
+			try {
+				JSONArray jsonArray = new JSONArray(readTwitterFeed);
+				Log.i(TAG, "Number of entries " + jsonArray.length());
+				for (int i = 0; i < jsonArray.length(); i++) {
+					JSONObject jsonObject = jsonArray.getJSONObject(i);
+					Log.i(TAG, jsonObject.getString("text"));
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
+		private String readTwitterFeed(String searchString) {
+			StringBuilder builder = new StringBuilder();
+			HttpClient client = new DefaultHttpClient();
+			HttpGet httpGet = new HttpGet(searchString);
+			try {
+				HttpResponse response = client.execute(httpGet);
+				StatusLine statusLine = response.getStatusLine();
+				int statusCode = statusLine.getStatusCode();
+				if (statusCode == 200) {
+					HttpEntity entity = response.getEntity();
+					InputStream content = entity.getContent();
+					BufferedReader reader = new BufferedReader(new InputStreamReader(content));
+					String line;
+					while ((line = reader.readLine()) != null) {
+						builder.append(line);
+					}
+				} else {
+					Log.e(TAG, "Failed to download file");
+				}
+			} catch (ClientProtocolException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			return builder.toString();
+		}
+
+
+    }
+    
+    private class LocationUpdate extends AsyncTask<Location, Void, LatLng> {
+
+    	double coordLat, coordLng;
+		@Override
+		protected LatLng doInBackground(Location... params) {
+			coordLat = (params[0]).getLatitude();
+			coordLng = (params[0]).getLongitude();
+			LatLng location = new LatLng(coordLat, coordLng);
+			return location;
+		}
+    	
+		@Override
+		protected void onPostExecute(LatLng location) {
+			coords[0] = (float)coordLat;
+			coords[1] = (float)coordLng;
+			map.clear();
+			Marker m = map.addMarker(new MarkerOptions().position(location));				
+			map.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 18));
+			map.animateCamera(CameraUpdateFactory.zoomTo(14), 2000, null);
+			// Instantiates a new CircleOptions object and defines the center and radius
+			CircleOptions circleOptions = new CircleOptions()
+			    .center(location)
+			    .radius(1000); // In meters
+			
+			// Get back the mutable Circle
+			Circle circle = map.addCircle(circleOptions);
+			circle.setFillColor(Color.argb(100, 81, 207, 245));
+			circle.setStrokeColor(Color.argb(255, 81, 207, 245));
+			m.setDraggable(true);			
+		}
+    }
+    
 	/**
 	 * A static Handler to avoid memory leak
 	 * @author yaxi.ye
 	 *
 	 */
-	static class LocationHandler extends Handler {
-		WeakReference<MainActivity> mActivity;
-
-		public LocationHandler(MainActivity activity) {
-			mActivity = new WeakReference<MainActivity>(activity);
-		}
-
-		public void handleMessage(Message msg) {
-			MainActivity contextActivity = mActivity.get();
-			switch ((int)msg.what) {
-			case DRAW_MARKER:
-				double coordLat = ((Location)msg.obj).getLatitude();
-//				contextActivity.coords[0] = coordLat;
-				double coordLng = ((Location)msg.obj).getLongitude();
-//				contextActivity.coords[1] = coordLng;
-				LatLng location = new LatLng(coordLat, coordLng);
-				map.clear();
-				Marker m = map.addMarker(new MarkerOptions().position(location));				
-				map.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 18));
-				map.animateCamera(CameraUpdateFactory.zoomTo(14), 2000, null);
-				// Instantiates a new CircleOptions object and defines the center and radius
-				CircleOptions circleOptions = new CircleOptions()
-				    .center(location)
-				    .radius(1000); // In meters
-				
-				// Get back the mutable Circle
-				Circle circle = map.addCircle(circleOptions);
-				circle.setFillColor(Color.argb(100, 81, 207, 245));
-				circle.setStrokeColor(Color.argb(255, 81, 207, 245));
-				m.setDraggable(true);
-				break;
-
-//			case LOAD_COORD:
+//	static class TaskHandler extends Handler {
+//		WeakReference<MainActivity> mActivity;
+//
+//		public TaskHandler(MainActivity activity) {
+//			mActivity = new WeakReference<MainActivity>(activity);
+//		}
+//
+//		public void handleMessage(Message msg) {
+//			MainActivity contextActivity = mActivity.get();
+//			switch ((int)msg.what) {
+//			case DRAW_MARKER:
+//				double coordLat = ((Location)msg.obj).getLatitude();
+//				contextActivity.coords[0] = (float)coordLat;
+//				double coordLng = ((Location)msg.obj).getLongitude();
+//				contextActivity.coords[1] = (float)coordLng;
+//				LatLng location = new LatLng(coordLat, coordLng);
 //				map.clear();
-//				double[] coordArray = (double[])msg.obj;
-//				Marker marker = map.addMarker(new MarkerOptions().position(new LatLng(coordArray[0], coordArray[1])));
-//				map.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(coordArray[0], coordArray[1]), 18));
-//				map.animateCamera(CameraUpdateFactory.zoomTo(18), 2000, null);
-//				marker.setDraggable(true);
-//				String s = Double.toString(coordArray[0]) + ", " + Double.toString(coordArray[1]);				
+//				Marker m = map.addMarker(new MarkerOptions().position(location));				
+//				map.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 18));
+//				map.animateCamera(CameraUpdateFactory.zoomTo(14), 2000, null);
+//				// Instantiates a new CircleOptions object and defines the center and radius
+//				CircleOptions circleOptions = new CircleOptions()
+//				    .center(location)
+//				    .radius(1000); // In meters
+//				
+//				// Get back the mutable Circle
+//				Circle circle = map.addCircle(circleOptions);
+//				circle.setFillColor(Color.argb(100, 81, 207, 245));
+//				circle.setStrokeColor(Color.argb(255, 81, 207, 245));
+//				m.setDraggable(true);
 //				break;
-
-			}
-		}
-	}
+//
+////			case SEARCH_TWEETS:
+////				String searchString = (String)msg.obj;
+////				contextActivity.performSearch(searchString);
+////				break;
+//
+//			}
+//		}
+//	}
 }
