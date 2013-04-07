@@ -1,10 +1,14 @@
 package com.yeyaxi.android.ubercheckout;
 
-import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.lang.ref.WeakReference;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -13,8 +17,6 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -24,15 +26,19 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Message;
+import android.os.Environment;
 import android.provider.Settings;
+import android.util.JsonReader;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -40,6 +46,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.RadioButton;
 import android.widget.SearchView;
 import android.widget.SeekBar;
@@ -49,6 +56,7 @@ import android.widget.TextView;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.GoogleMap.InfoWindowAdapter;
 import com.google.android.gms.maps.GoogleMap.OnMarkerDragListener;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.model.Circle;
@@ -57,7 +65,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.yeyaxi.android.ubercheckout.utilities.Constant;
-import com.yeyaxi.android.ubercheckout.utilities.ParseJSON;
+
 /**
  * 
  * @author Yaxi Ye
@@ -76,8 +84,8 @@ public class MainActivity extends Activity {
 	
 //	private static Handler mHandler;
 	private LocationManager mLocationManager;
-	private static final int SEARCH_TWEETS = 2;
-	private static final int DRAW_MARKER = 1;
+//	private static final int SEARCH_TWEETS = 2;
+//	private static final int DRAW_MARKER = 1;
     private static final int TEN_SECONDS = 10000;
     private static final int TEN_METERS = 10;
     private static final int TWO_MINUTES = 1000 * 60 * 2;
@@ -109,14 +117,16 @@ public class MainActivity extends Activity {
 
 		// Set up the Language Spinner
 		spinner_language = (Spinner) findViewById(R.id.spinner_language);
+		
 		// Create an ArrayAdapter using the string array and a default spinner layout
 		ArrayAdapter<CharSequence> languageAdapter = ArrayAdapter.createFromResource(this,
 		        R.array.languages_array, android.R.layout.simple_spinner_item);
+		
 		// Specify the layout to use when the list of choices appears
 		languageAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+		
 		// Apply the adapter to the spinner
 		spinner_language.setAdapter(languageAdapter);
-		
 		spinner_language.setOnItemSelectedListener(new OnItemSelectedListener() {
 
 			@Override
@@ -269,18 +279,22 @@ public class MainActivity extends Activity {
 			Log.i(TAG, "in this clause");
 		} else if (seekBar_radius.getProgress() > 0) {
 			//TODO Search with radius
-			String unit = radio_km.isChecked() ? "km" : "mi";
+			String unit = "km";
+			if (radio_km.isChecked())
+				unit = "km";
+			else if (radio_mi.isChecked())
+				unit = "mi";
+			
 			String query = Constant.BASE_SEARCH_URL + keywords + 
 					"&geocode=" + coords[0] + "," + coords[1] + "," + seekBar_radius.getProgress() + unit;
 			Log.i(TAG, query);
-			new PerformSearch().execute(query);
+			PerformSearch task = new PerformSearch();
+			task.execute(query);
+//			new PerformSearch().execute(query);
 		}
 			
 	}
-	
-	
 
-	
 	private void getCurrentLocation() {
 		// Show mapview, drop position pin
 		Location gps = requestLocationFromProvider(LocationManager.GPS_PROVIDER, 0);
@@ -399,67 +413,7 @@ public class MainActivity extends Activity {
     	})
     	.create();
     }
-    
-    private class PerformSearch extends AsyncTask<String, Void, String> {
 
-
-		@Override
-		protected String doInBackground(String... params) {
-			parseJSON(params[0]);
-			return null;
-		}
-    	
-		
-		@Override
-		protected void onPostExecute(String s) {
-			
-		}
-		
-		
-		private void parseJSON (String searchString) {
-			String readTwitterFeed = readTwitterFeed(searchString);
-			try {
-				JSONArray jsonArray = new JSONArray(readTwitterFeed);
-				Log.i(TAG, "Number of entries " + jsonArray.length());
-				for (int i = 0; i < jsonArray.length(); i++) {
-					JSONObject jsonObject = jsonArray.getJSONObject(i);
-					Log.i(TAG, jsonObject.getString("text"));
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
-
-		private String readTwitterFeed(String searchString) {
-			StringBuilder builder = new StringBuilder();
-			HttpClient client = new DefaultHttpClient();
-			HttpGet httpGet = new HttpGet(searchString);
-			try {
-				HttpResponse response = client.execute(httpGet);
-				StatusLine statusLine = response.getStatusLine();
-				int statusCode = statusLine.getStatusCode();
-				if (statusCode == 200) {
-					HttpEntity entity = response.getEntity();
-					InputStream content = entity.getContent();
-					BufferedReader reader = new BufferedReader(new InputStreamReader(content));
-					String line;
-					while ((line = reader.readLine()) != null) {
-						builder.append(line);
-					}
-				} else {
-					Log.e(TAG, "Failed to download file");
-				}
-			} catch (ClientProtocolException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			return builder.toString();
-		}
-
-
-    }
-    
     private class LocationUpdate extends AsyncTask<Location, Void, LatLng> {
 
     	double coordLat, coordLng;
@@ -491,50 +445,342 @@ public class MainActivity extends Activity {
 			m.setDraggable(true);			
 		}
     }
+
     
-	/**
-	 * A static Handler to avoid memory leak
-	 * @author yaxi.ye
-	 *
-	 */
-//	static class TaskHandler extends Handler {
-//		WeakReference<MainActivity> mActivity;
-//
-//		public TaskHandler(MainActivity activity) {
-//			mActivity = new WeakReference<MainActivity>(activity);
-//		}
-//
-//		public void handleMessage(Message msg) {
-//			MainActivity contextActivity = mActivity.get();
-//			switch ((int)msg.what) {
-//			case DRAW_MARKER:
-//				double coordLat = ((Location)msg.obj).getLatitude();
-//				contextActivity.coords[0] = (float)coordLat;
-//				double coordLng = ((Location)msg.obj).getLongitude();
-//				contextActivity.coords[1] = (float)coordLng;
-//				LatLng location = new LatLng(coordLat, coordLng);
-//				map.clear();
-//				Marker m = map.addMarker(new MarkerOptions().position(location));				
-//				map.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 18));
-//				map.animateCamera(CameraUpdateFactory.zoomTo(14), 2000, null);
-//				// Instantiates a new CircleOptions object and defines the center and radius
-//				CircleOptions circleOptions = new CircleOptions()
-//				    .center(location)
-//				    .radius(1000); // In meters
-//				
-//				// Get back the mutable Circle
-//				Circle circle = map.addCircle(circleOptions);
-//				circle.setFillColor(Color.argb(100, 81, 207, 245));
-//				circle.setStrokeColor(Color.argb(255, 81, 207, 245));
-//				m.setDraggable(true);
-//				break;
-//
-////			case SEARCH_TWEETS:
-////				String searchString = (String)msg.obj;
-////				contextActivity.performSearch(searchString);
-////				break;
-//
-//			}
-//		}
-//	}
+    /**
+     * AsyncTask to perform the burden of Network stuff
+     * @author Yaxi Ye
+     *
+     */
+    public class PerformSearch extends AsyncTask<String, Void, List> {
+
+    	public List resultList;
+    	
+    	private static final String TAG = "PerformSearch";
+
+    	@Override
+    	protected List doInBackground(String... params) {
+    		resultList = new ArrayList<Result>();
+    		resultList = readTwitterFeed(params[0]);
+    		return resultList;
+    	}
+
+
+    	@Override
+    	protected void onPostExecute(List list) {
+    		//TODO Put markers on the map
+    		new DrawTweetMarkers().execute(list);
+    	}
+
+    	private List readTwitterFeed(String searchString) {
+    		//		StringBuilder builder = new StringBuilder();
+    		HttpClient client = new DefaultHttpClient();
+    		HttpGet httpGet = new HttpGet(searchString);
+    		try {
+    			HttpResponse response = client.execute(httpGet);
+    			StatusLine statusLine = response.getStatusLine();
+    			int statusCode = statusLine.getStatusCode();
+    			if (statusCode == 200) {
+    				HttpEntity entity = response.getEntity();
+    				InputStream content = entity.getContent();
+    				JsonReader reader = new JsonReader(new InputStreamReader(content, "UTF-8"));
+    				try {
+    					return readResultsArray(reader);
+    				}     finally {
+    					reader.close();
+    				}
+    			} else {
+    				Log.e(TAG, "Failed to download file");
+    			}
+    		} catch (ClientProtocolException e) {
+    			e.printStackTrace();
+    		} catch (IOException e) {
+    			e.printStackTrace();
+    		}
+    		return null;
+    	}
+
+
+    	private List readResultsArray(JsonReader reader) throws IOException {
+    		List results = new ArrayList();
+    		
+    		reader.beginObject();
+    		while (reader.hasNext()) {
+    			String name = reader.nextName();
+    			if (name.equals("results")) 
+    				results.add(readResult(reader));
+    			else
+    				reader.skipValue();
+    		}
+    		reader.endObject();
+
+    		return results;
+    	}
+
+
+    	private Result readResult(JsonReader reader) throws IOException {
+
+    		String from_user = null, 
+    				from_user_id_str = null, 
+    				from_user_name = null,
+    				text = null;
+    		Geo geo = null;
+    		URL profile_image_url = null;
+
+    		reader.beginArray();
+			reader.beginObject();
+//			reader.beginArray();
+    		while (reader.hasNext()) {
+    			String name = reader.nextName();
+    			if (name.equals("from_user"))
+    				from_user = reader.nextString();
+    			else if (name.equals("from_user_id_str"))
+    				from_user_id_str = reader.nextString();
+    			else if (name.equals("from_user_name"))
+    				from_user_name = reader.nextString();
+    			else if (name.equals("geo")) {
+    				reader.beginObject();
+    				while(reader.hasNext()) {
+//    					String s = reader.nextName();
+    					if (name.equals("coordinates")) {
+        					reader.beginArray();
+    						double latitude = 0;
+    						double longitude = 0;
+    						while (reader.hasNext()) {
+    							latitude = reader.nextDouble();
+    							longitude = reader.nextDouble();
+    							geo = new Geo(latitude, longitude);
+    						}
+						}
+    				}
+    				reader.endArray();
+    				reader.endObject();
+    			}
+    			else if (name.equals("profile_image_url"))
+    				profile_image_url = new URL(reader.nextString());
+    			else if (name.equals("text"))
+    				text = reader.nextString();
+    			else
+    				reader.skipValue();
+
+    		}
+//    		reader.endArray();
+    		reader.endObject();
+    		reader.endArray();
+
+    		return new Result(from_user, from_user_id_str, from_user_name, text, geo, profile_image_url);
+    	}
+
+    }
+    
+    private class DrawTweetMarkers extends AsyncTask<List, Void, LatLng> {
+    	private List tweetResult;
+		@Override
+		protected LatLng doInBackground(List... params) {
+			tweetResult = new ArrayList<Result>();
+			tweetResult = params[0];
+
+			for (int i = 0; i < tweetResult.size(); i++) {
+				Result result = (Result) tweetResult.get(i);
+				URL image_url = result.getProfile_image_url();
+				try {
+					downloadUrl(image_url, result.getFrom_user_id_str());
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+
+
+			return null;
+		}
+		
+		@Override
+		protected void onPostExecute(LatLng latLng) {
+			//TODO put markers
+			if (tweetResult != null && tweetResult.isEmpty() == false) {
+				for (int i = 0; i < tweetResult.size(); i++) {
+					Result r = (Result) tweetResult.get(i);
+					
+					final Bitmap bm = decodeSampledBitmapFromFile(r.getFrom_user_id_str(), 40, 40);
+					
+					// Inflate info windows
+					final View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
+					
+					// Set up markers
+					map.addMarker(new MarkerOptions()
+					.position(r.getGeo())
+					.title(r.getFrom_user_name())
+					.snippet(r.getText()));
+					map.setInfoWindowAdapter(new InfoWindowAdapter() {
+
+						@Override
+						public View getInfoWindow(Marker marker) {
+							
+							return null;
+						}
+
+						@Override
+						public View getInfoContents(Marker marker) {
+							TextView username = (TextView)infoView.findViewById(R.id.textView_username);
+							TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
+							ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
+							thumbnail.setImageBitmap(bm);
+							username.setText(marker.getTitle());
+							tweets.setText(marker.getSnippet());
+							return infoView;
+						}
+					});
+
+				}
+			}
+		}
+		
+		
+		private Bitmap decodeSampledBitmapFromFile(String filename, int reqWidth, int reqHeight) {
+			Bitmap bm = null;
+			File cachePath;
+	        if (getExternalFilesDir(null) != null) {
+	        	cachePath = getExternalFilesDir(null); // Priorly use External Cache
+	        } else {
+	        	cachePath = getFilesDir();// Use Internal cache instead if external one is not available
+	        }
+			File file = new File(cachePath, filename);
+			if (file != null) {
+				// First decode with inJustDecodeBounds=true to check dimensions
+				final BitmapFactory.Options options = new BitmapFactory.Options();
+				options.inJustDecodeBounds = true;
+				BitmapFactory.decodeFile(file.getAbsolutePath(), options);
+
+				// Calculate inSampleSize
+				options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
+
+				// Decode bitmap with inSampleSize set
+				options.inJustDecodeBounds = false;
+				bm = BitmapFactory.decodeFile(file.getAbsolutePath(), options); 
+			}
+			return bm;
+		}
+		
+		public Bitmap decodeSampledBitmapFromUrl(URL url, String filename, int reqWidth, int reqHeight) {
+			Bitmap bm = null;
+
+			File file;
+			try {
+				file = downloadUrl(url, filename);
+
+
+				// First decode with inJustDecodeBounds=true to check dimensions
+				final BitmapFactory.Options options = new BitmapFactory.Options();
+				options.inJustDecodeBounds = true;
+				BitmapFactory.decodeFile(file.getAbsolutePath(), options);
+
+				// Calculate inSampleSize
+				options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
+
+				// Decode bitmap with inSampleSize set
+				options.inJustDecodeBounds = false;
+				bm = BitmapFactory.decodeFile(file.getAbsolutePath(), options); 
+			
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			return bm;  
+		}
+		
+		public int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
+			// Raw height and width of image
+			final int height = options.outHeight;
+			final int width = options.outWidth;
+			int inSampleSize = 1;
+
+			if (height > reqHeight || width > reqWidth) {
+				if (width > height) {
+					inSampleSize = Math.round((float)height / (float)reqHeight);   
+				} else {
+					inSampleSize = Math.round((float)width / (float)reqWidth);   
+				}   
+			}
+
+			return inSampleSize;   
+		}
+		
+		/**
+		 * Download file from given URL
+		 * @param urlString the URL of file to be downloaded
+		 * @return downloaded file
+		 * @throws IOException
+		 */
+		private File downloadUrl(URL url, String filename) throws IOException {
+//	        URL url = new URL(urlString);
+	        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+	        conn.setReadTimeout(15000 /* milliseconds */);
+	        conn.setConnectTimeout(20000 /* milliseconds */);
+	        conn.setRequestMethod("GET");
+	        conn.setDoInput(true);
+	        // Starts the query
+	        conn.connect();
+	        InputStream stream = conn.getInputStream();     
+//	        File cacheDir = getStorageDir(getApplicationContext());
+	        File cacheDir;
+	        if (getExternalFilesDir(null) != null) {
+	        	cacheDir = getExternalFilesDir(null); // Priorly use External Cache
+	        } else {
+	        	cacheDir = getFilesDir();// Use Internal cache instead if external one is not available
+	        }
+	        File cache = new File(cacheDir, filename);
+	        FileOutputStream fos = new FileOutputStream(cache);
+	        byte[] buffer = new byte[1024];
+	        int bufferLength = 0;
+	        while ((bufferLength = stream.read(buffer)) > 0) {
+	        	fos.write(buffer, 0, bufferLength);
+	        }	            
+	        fos.flush();
+	        fos.close();
+	        return cache;
+	    }
+		
+		/**
+		 * Check network connectivity.
+		 * @return true if the current network is connected.
+		 */
+		private boolean isNetworkConnected() {
+			ConnectivityManager cm = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+			NetworkInfo ni = cm.getActiveNetworkInfo();
+			if (ni != null && ni.isConnected()) {
+				return true;
+			} else {
+				return false;
+			}
+			
+		}
+		
+		/** 
+		 * Checks if external storage is available for read and write
+		 * @return true if external storage is available for read & write
+		 */
+		public boolean isExternalStorageWritable() {
+		    String state = Environment.getExternalStorageState();
+		    if (Environment.MEDIA_MOUNTED.equals(state)) {
+		        return true;
+		    }
+		    return false;
+		}
+		
+		/** 
+		 * Checks if external storage is available to at least read
+		 * @return true if external storage is readable
+		 */
+		public boolean isExternalStorageReadable() {
+		    String state = Environment.getExternalStorageState();
+		    if (Environment.MEDIA_MOUNTED.equals(state) ||
+		        Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
+		        return true;
+		    }
+		    return false;
+		}
+    	
+    }
+    
 }
