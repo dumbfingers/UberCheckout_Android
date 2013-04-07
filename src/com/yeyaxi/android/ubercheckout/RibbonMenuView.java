@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.animation.AnimationUtils;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 
 public class RibbonMenuView extends LinearLayout 
 {

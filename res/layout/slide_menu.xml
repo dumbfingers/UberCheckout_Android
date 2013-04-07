@@ -9,31 +9,13 @@
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
-    android:visibility="visible"
+    android:visibility="gone"
     tools:context=".MainActivity" >
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical" >
-
-        <TextView
-            android:id="@+id/textView5"
-            style="@style/ListSeparatorTextViewStyle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/title_search_keywords"
-            android:textAppearance="?android:attr/textAppearanceLarge"
-            android:textStyle="normal" />
-
-        <EditText
-            android:id="@+id/editText_searchbox"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:ems="10"
-            android:hint="@string/search_hint" />
     </LinearLayout>
 
     <LinearLayout
@@ -76,8 +58,16 @@
             android:layout_height="wrap_content"
             android:orientation="vertical" >
 
+            <TextView
+                android:id="@+id/textView_radius"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Large Text"
+                android:textAppearance="?android:attr/textAppearanceLarge" />
+
             <SeekBar
-                android:id="@+id/seekBar1"
+                android:id="@+id/seekBar_radius"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -91,17 +81,17 @@
                 android:orientation="vertical" >
 
                 <RadioButton
-                    android:id="@+id/radio0"
+                    android:id="@+id/radio_km"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:checked="true"
-                    android:text="RadioButton" />
+                    android:text="@string/radio_title_km" />
 
                 <RadioButton
-                    android:id="@+id/radio1"
+                    android:id="@+id/radio_mi"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="RadioButton" />
+                    android:text="@string/radio_title_mi" />
             </RadioGroup>
         </LinearLayout>
     </LinearLayout>
