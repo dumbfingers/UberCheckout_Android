@@ -8,7 +8,6 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -452,27 +451,28 @@ public class MainActivity extends Activity {
      * @author Yaxi Ye
      *
      */
-    public class PerformSearch extends AsyncTask<String, Void, List> {
+    private class PerformSearch extends AsyncTask<String, Void, ArrayList<Result>> {
 
-    	public List resultList;
+//    	public List resultList;
     	
     	private static final String TAG = "PerformSearch";
 
     	@Override
-    	protected List doInBackground(String... params) {
-    		resultList = new ArrayList<Result>();
+    	protected ArrayList<Result> doInBackground(String... params) {
+    		ArrayList<Result> resultList = new ArrayList<Result>();
     		resultList = readTwitterFeed(params[0]);
     		return resultList;
+//    		return readTwitterFeed(params[0]);
     	}
 
-
     	@Override
-    	protected void onPostExecute(List list) {
-    		//TODO Put markers on the map
+    	protected void onPostExecute(ArrayList<Result> list) {
+    		Log.i(TAG, "Test");
+    		// Put markers on the map
     		new DrawTweetMarkers().execute(list);
     	}
 
-    	private List readTwitterFeed(String searchString) {
+    	private ArrayList<Result> readTwitterFeed(String searchString) {
     		//		StringBuilder builder = new StringBuilder();
     		HttpClient client = new DefaultHttpClient();
     		HttpGet httpGet = new HttpGet(searchString);
@@ -501,8 +501,8 @@ public class MainActivity extends Activity {
     	}
 
 
-    	private List readResultsArray(JsonReader reader) throws IOException {
-    		List results = new ArrayList();
+    	private ArrayList<Result> readResultsArray(JsonReader reader) throws IOException {
+    		ArrayList<Result> results = new ArrayList<Result>();
     		
     		reader.beginObject();
     		while (reader.hasNext()) {
@@ -529,7 +529,6 @@ public class MainActivity extends Activity {
 
     		reader.beginArray();
 			reader.beginObject();
-//			reader.beginArray();
     		while (reader.hasNext()) {
     			String name = reader.nextName();
     			if (name.equals("from_user"))
@@ -564,7 +563,6 @@ public class MainActivity extends Activity {
     				reader.skipValue();
 
     		}
-//    		reader.endArray();
     		reader.endObject();
     		reader.endArray();
 
@@ -573,10 +571,11 @@ public class MainActivity extends Activity {
 
     }
     
-    private class DrawTweetMarkers extends AsyncTask<List, Void, LatLng> {
-    	private List tweetResult;
+    private class DrawTweetMarkers extends AsyncTask<ArrayList<Result>, Void, Void> {
+    	private ArrayList<Result> tweetResult;
+    	
 		@Override
-		protected LatLng doInBackground(List... params) {
+		protected Void doInBackground(ArrayList<Result>... params) {
 			tweetResult = new ArrayList<Result>();
 			tweetResult = params[0];
 
@@ -590,13 +589,12 @@ public class MainActivity extends Activity {
 				}
 			}
 
-
 			return null;
 		}
 		
 		@Override
-		protected void onPostExecute(LatLng latLng) {
-			//TODO put markers
+		protected void onPostExecute(Void v) {
+			// put markers
 			if (tweetResult != null && tweetResult.isEmpty() == false) {
 				for (int i = 0; i < tweetResult.size(); i++) {
 					Result r = (Result) tweetResult.get(i);
@@ -607,7 +605,7 @@ public class MainActivity extends Activity {
 					final View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
 					
 					// Set up markers
-					map.addMarker(new MarkerOptions()
+					Marker marker = map.addMarker(new MarkerOptions()
 					.position(r.getGeo())
 					.title(r.getFrom_user_name())
 					.snippet(r.getText()));
@@ -629,8 +627,8 @@ public class MainActivity extends Activity {
 							tweets.setText(marker.getSnippet());
 							return infoView;
 						}
-					});
-
+					});					
+					marker.showInfoWindow();
 				}
 			}
 		}
@@ -659,34 +657,6 @@ public class MainActivity extends Activity {
 				bm = BitmapFactory.decodeFile(file.getAbsolutePath(), options); 
 			}
 			return bm;
-		}
-		
-		public Bitmap decodeSampledBitmapFromUrl(URL url, String filename, int reqWidth, int reqHeight) {
-			Bitmap bm = null;
-
-			File file;
-			try {
-				file = downloadUrl(url, filename);
-
-
-				// First decode with inJustDecodeBounds=true to check dimensions
-				final BitmapFactory.Options options = new BitmapFactory.Options();
-				options.inJustDecodeBounds = true;
-				BitmapFactory.decodeFile(file.getAbsolutePath(), options);
-
-				// Calculate inSampleSize
-				options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
-
-				// Decode bitmap with inSampleSize set
-				options.inJustDecodeBounds = false;
-				bm = BitmapFactory.decodeFile(file.getAbsolutePath(), options); 
-			
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			
-			return bm;  
 		}
 		
 		public int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
