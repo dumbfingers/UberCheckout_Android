@@ -10,6 +10,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -35,6 +36,8 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.GoogleMap.OnMarkerDragListener;
 import com.google.android.gms.maps.MapFragment;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -63,7 +66,7 @@ public class MainActivity extends Activity {
     private static final int TEN_METERS = 10;
     private static final int TWO_MINUTES = 1000 * 60 * 2;
 	private static GoogleMap map;
-	private float[] coords;
+	private float[] coords = new float[2];// coords[0] is latitude, coords[1] is longitude
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -128,7 +131,7 @@ public class MainActivity extends Activity {
 	      performSearch(keywords);
 	    }
 	    // Init the value of seek bar as 0
-	    seekBar_radius.setProgress(0);
+	    seekBar_radius.setProgress(20);
 	    seekBar_radius.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
 			
 			@Override
@@ -182,6 +185,19 @@ public class MainActivity extends Activity {
 	}
 	
 	@Override
+	protected void onStart() {
+		super.onStart();
+
+		LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+		final boolean gpsEnabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
+
+		if (!gpsEnabled) {
+			Dialog dialog = enableGpsDialog(this);
+			dialog.show();
+		}
+	}
+	
+	@Override
 	protected void onResume() {
 		super.onResume();
 		
@@ -189,6 +205,14 @@ public class MainActivity extends Activity {
 		getCurrentLocation();
 	}
 
+	@Override
+	protected void onStop() {
+		super.onStop();
+		// Stop listening to the Loation Providers
+		mLocationManager.removeUpdates(geoListener);
+		Log.i(TAG, "Location updates stopped.");
+	}
+	
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
@@ -220,6 +244,12 @@ public class MainActivity extends Activity {
 		if (spinner_language.getSelectedItem().toString().equals(" ") == true &&
 				seekBar_radius.getProgress() == 0) {
 			//TODO finish the search term
+		} else if (seekBar_radius.getProgress() > 0) {
+			//TODO Search with radius
+			String unit = radio_km.isChecked() ? "km" : "mi";
+			String query = Constant.BASE_SEARCH_URL + keywords + 
+					"&geocode=" + coords[0] + "," + coords[1] + "," + seekBar_radius.getProgress() + unit;
+			
 		}
 			
 	}
@@ -362,10 +392,20 @@ public class MainActivity extends Activity {
 //				contextActivity.coords[0] = coordLat;
 				double coordLng = ((Location)msg.obj).getLongitude();
 //				contextActivity.coords[1] = coordLng;
+				LatLng location = new LatLng(coordLat, coordLng);
 				map.clear();
-				Marker m = map.addMarker(new MarkerOptions().position(new LatLng(coordLat, coordLng)));				
-				map.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(coordLat, coordLng), 18));
-				map.animateCamera(CameraUpdateFactory.zoomTo(18), 2000, null);
+				Marker m = map.addMarker(new MarkerOptions().position(location));				
+				map.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 18));
+				map.animateCamera(CameraUpdateFactory.zoomTo(14), 2000, null);
+				// Instantiates a new CircleOptions object and defines the center and radius
+				CircleOptions circleOptions = new CircleOptions()
+				    .center(location)
+				    .radius(1000); // In meters
+				
+				// Get back the mutable Circle
+				Circle circle = map.addCircle(circleOptions);
+				circle.setFillColor(Color.argb(100, 81, 207, 245));
+				circle.setStrokeColor(Color.argb(255, 81, 207, 245));
 				m.setDraggable(true);
 				break;
 
