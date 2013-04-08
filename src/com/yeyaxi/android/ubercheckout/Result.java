@@ -44,8 +44,8 @@ public class Result {
 		return text;
 	}
 
-	public LatLng getGeo() {
-		return geo.getGeo();
+	public Geo getGeo() {
+		return geo;
 	}
 
 	public URL getProfile_image_url() {

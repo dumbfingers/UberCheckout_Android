@@ -14,7 +14,7 @@ public class Geo {
 		latLng = new LatLng(latitude, longitude);
 	}
 	
-	public LatLng getGeo() {
+	public LatLng getLatLng() {
 		return latLng;
 	}
 	

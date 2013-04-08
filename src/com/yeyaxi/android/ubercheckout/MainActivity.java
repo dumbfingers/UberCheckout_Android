@@ -509,10 +509,15 @@ public class MainActivity extends Activity {
     		reader.beginObject();
     		while (reader.hasNext()) {
     			String name = reader.nextName();
-    			if (name.equals("results")) 
-    				results.add(readResult(reader));
-    			else
+    			if (name.equals("results")){
+    	    		reader.beginArray();
+    	    		while (reader.hasNext()) {
+    	    			results.add(readResult(reader));
+    	    		}
+    	    		reader.endArray();
+    			} else {
     				reader.skipValue();
+    			}
     		}
     		reader.endObject();
 
@@ -529,7 +534,6 @@ public class MainActivity extends Activity {
     		Geo geo = null;
     		URL profile_image_url = null;
 
-    		reader.beginArray();
 			reader.beginObject();
     		while (reader.hasNext()) {
     			String name = reader.nextName();
@@ -561,13 +565,12 @@ public class MainActivity extends Activity {
     							Log.i(TAG, latitude + ", " + longitude);
     							geo = new Geo(latitude, longitude);
     						}
+    						reader.endArray();
 						} else {
 							reader.skipValue();
 						}
     				}
     				reader.endObject();
-//    				reader.endArray();
-//    				reader.endObject();
     				
     			} else if (name.equals("profile_image_url")) {
     				
@@ -585,7 +588,7 @@ public class MainActivity extends Activity {
 
     		}
     		reader.endObject();
-    		reader.endArray();
+
 
     		return new Result(from_user, from_user_id_str, from_user_name, text, geo, profile_image_url);
     	}
@@ -627,7 +630,7 @@ public class MainActivity extends Activity {
 					
 					// Set up markers
 					Marker marker = map.addMarker(new MarkerOptions()
-					.position(r.getGeo())
+					.position(r.getGeo().getLatLng())
 					.title(r.getFrom_user_name())
 					.snippet(r.getText()));
 					map.setInfoWindowAdapter(new InfoWindowAdapter() {
