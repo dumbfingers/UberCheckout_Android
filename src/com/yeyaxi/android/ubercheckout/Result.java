@@ -14,16 +14,18 @@ public class Result {
 	private String from_user, 
 					from_user_id_str, 
 					from_user_name,
-					text;
+					text,
+					location;
 	private Geo geo;
 	private URL profile_image_url;
 
 	public Result(String from_user, String from_user_id_str, String from_user_name, 
-					String text, Geo geo, URL profile_image_url) {
+					String text, Geo geo, String location, URL profile_image_url) {
 		this.from_user = from_user;
 		this.from_user_id_str = from_user_id_str;
 		this.from_user_name = from_user_name;
 		this.text = text;
+		this.location = location;
 		this.geo = geo;
 		this.profile_image_url = profile_image_url;
 	}
@@ -48,10 +50,15 @@ public class Result {
 		return geo;
 	}
 
+	public String getLocation() {
+		return location;
+	}
+	
 	public URL getProfile_image_url() {
 		return profile_image_url;
 	}
 
+	
 //	public void setFrom_user(String from_user) {
 //		this.from_user = from_user;
 //	}

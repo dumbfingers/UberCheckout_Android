@@ -8,6 +8,8 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -28,6 +30,8 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -86,7 +90,7 @@ public class MainActivity extends Activity {
 	private LocationManager mLocationManager;
 	//	private static final int SEARCH_TWEETS = 2;
 	//	private static final int DRAW_MARKER = 1;
-	private static final int TEN_SECONDS = 10000;
+	private static final int TEN_MINUTES = 1000 * 60 * 10;
 	private static final int TEN_METERS = 10;
 	private static final int TWO_MINUTES = 1000 * 60 * 2;
 	private static GoogleMap map;
@@ -215,14 +219,16 @@ public class MainActivity extends Activity {
 			Dialog dialog = enableGpsDialog(this);
 			dialog.show();
 		}
+		
+		// Locate the user automatically as the app starts
+		getCurrentLocation();
 	}
 
 	@Override
 	protected void onResume() {
 		super.onResume();
 
-		// Locate the user automatically as the app starts
-		getCurrentLocation();
+
 	}
 
 	@Override
@@ -278,7 +284,7 @@ public class MainActivity extends Activity {
 			// finish the search term
 			Log.i(TAG, "in this clause");
 		} else if (seekBar_radius.getProgress() > 0) {
-			//TODO Search with radius
+			// Search with radius
 			String unit = "km";
 			if (radio_km.isChecked())
 				unit = "km";
@@ -356,7 +362,7 @@ public class MainActivity extends Activity {
 	private Location requestLocationFromProvider(final String provider, final int errResId) {
 		Location location = null;
 		if (mLocationManager.isProviderEnabled(provider)) {
-			mLocationManager.requestLocationUpdates(provider, TEN_SECONDS, TEN_METERS, geoListener);
+			mLocationManager.requestLocationUpdates(provider, TEN_MINUTES, TEN_METERS, geoListener);
 			location = mLocationManager.getLastKnownLocation(provider);
 		}
 		return location;
@@ -531,7 +537,8 @@ public class MainActivity extends Activity {
 			String from_user = null, 
 					from_user_id_str = null, 
 					from_user_name = null,
-					text = null;
+					text = null,
+					location = null;
 			Geo geo = null;
 			URL profile_image_url = null;
 
@@ -582,7 +589,10 @@ public class MainActivity extends Activity {
 							reader.endObject();
 						}
 					}
-
+				} else if (name.equals("location")) {
+					
+					location = reader.nextString();
+					Log.i(TAG, location);
 				} else if (name.equals("profile_image_url")) {
 
 					profile_image_url = new URL(reader.nextString());
@@ -600,7 +610,7 @@ public class MainActivity extends Activity {
 			}
 			reader.endObject();
 
-			return new Result(from_user, from_user_id_str, from_user_name, text, geo, profile_image_url);			
+			return new Result(from_user, from_user_id_str, from_user_name, text, geo, location, profile_image_url);			
 		}
 
 		private class DrawTweetMarkers extends AsyncTask<ArrayList<Result>, Void, Void> {
@@ -626,6 +636,9 @@ public class MainActivity extends Activity {
 
 			@Override
 			protected void onPostExecute(Void v) {
+				// Clear Map first
+				map.clear();
+				map.animateCamera(CameraUpdateFactory.zoomTo(5), 2000, null);
 				// put markers
 				if (tweetResult != null && tweetResult.isEmpty() == false) {
 					for (int i = 0; i < tweetResult.size(); i++) {
@@ -633,37 +646,124 @@ public class MainActivity extends Activity {
 
 						final Bitmap bm = decodeSampledBitmapFromFile(r.getFrom_user_id_str(), 40, 40);
 
-						// Inflate info windows
-						final View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
+						
+						
+						if (r.getGeo() != null) {
+							// Set up markers
+							Marker marker = map.addMarker(new MarkerOptions()
+							.position(r.getGeo().getLatLng())
+							.title(r.getFrom_user_name())
+							.snippet(r.getText()));
+							map.setInfoWindowAdapter(new InfoWindowAdapter() {
 
-						// Set up markers
-						Marker marker = map.addMarker(new MarkerOptions()
-						.position(r.getGeo().getLatLng())
-						.title(r.getFrom_user_name())
-						.snippet(r.getText()));
-						map.setInfoWindowAdapter(new InfoWindowAdapter() {
+								@Override
+								public View getInfoWindow(Marker marker) {
 
-							@Override
-							public View getInfoWindow(Marker marker) {
+									return null;
+								}
 
-								return null;
+								@Override
+								public View getInfoContents(Marker marker) {
+									// Inflate info windows
+									View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
+									TextView username = (TextView)infoView.findViewById(R.id.textView_username);
+									TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
+									ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
+									thumbnail.setImageBitmap(bm);
+									username.setText(marker.getTitle());
+									tweets.setText(marker.getSnippet());
+									return infoView;
+								}
+							});					
+							marker.showInfoWindow();
+							
+						} else if (r.getLocation() != null){
+							// If no geo=null, we use the location to put markers
+							Geocoder geoCoder = new Geocoder(MainActivity.this, Locale.UK);
+							List<Address> addressList;
+							try {
+								addressList = geoCoder.getFromLocationName(r.getLocation(), 1);
+								Address address = addressList.get(0);
+								double longitude = address.getLongitude();
+								double latitude = address.getLatitude();
+								Log.i(TAG, "Get Location: " + longitude + ", " + latitude);
+//								putMarkersOnMap(new LatLng(latitude, longitude), r.getFrom_user_name(), r.getText(), infoView, bm);
+								
+								
+								// Set up markers
+								Marker marker = map.addMarker(new MarkerOptions()
+								.position(new LatLng(latitude, longitude))
+								.title(r.getFrom_user_name())
+								.snippet(r.getText()));
+								map.setInfoWindowAdapter(new InfoWindowAdapter() {
+
+									@Override
+									public View getInfoWindow(Marker marker) {
+
+										return null;
+									}
+
+									@Override
+									public View getInfoContents(Marker marker) {
+										// Inflate info windows
+										View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
+										TextView username = (TextView)infoView.findViewById(R.id.textView_username);
+										TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
+										ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
+										thumbnail.setImageBitmap(bm);
+										username.setText(marker.getTitle());
+										tweets.setText(marker.getSnippet());
+										return infoView;
+									}
+								});					
+								marker.showInfoWindow();
+								
+								
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
 							}
 
-							@Override
-							public View getInfoContents(Marker marker) {
-								TextView username = (TextView)infoView.findViewById(R.id.textView_username);
-								TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
-								ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
-								thumbnail.setImageBitmap(bm);
-								username.setText(marker.getTitle());
-								tweets.setText(marker.getSnippet());
-								return infoView;
-							}
-						});					
-						marker.showInfoWindow();
+						}
 					}
 				}
 			}
+			
+//			/**
+//			 * 
+//			 * @param position
+//			 * @param title
+//			 * @param snippet
+//			 * @param view
+//			 * @param bm
+//			 */
+//			private void putMarkersOnMap(LatLng position, String title, String snippet, final View view, final Bitmap bm) {
+//				// Set up markers
+//				Marker marker = map.addMarker(new MarkerOptions()
+//				.position(position)
+//				.title(title)
+//				.snippet(snippet));
+//				map.setInfoWindowAdapter(new InfoWindowAdapter() {
+//
+//					@Override
+//					public View getInfoWindow(Marker marker) {
+//
+//						return null;
+//					}
+//
+//					@Override
+//					public View getInfoContents(Marker marker) {
+//						TextView username = (TextView)view.findViewById(R.id.textView_username);
+//						TextView tweets = (TextView)view.findViewById(R.id.textView_tweets);
+//						ImageView thumbnail = (ImageView)view.findViewById(R.id.imageView_profile_thumb);
+//						thumbnail.setImageBitmap(bm);
+//						username.setText(marker.getTitle());
+//						tweets.setText(marker.getSnippet());
+//						return view;
+//					}
+//				});					
+//				marker.showInfoWindow();
+//			}
 
 
 			private Bitmap decodeSampledBitmapFromFile(String filename, int reqWidth, int reqHeight) {
