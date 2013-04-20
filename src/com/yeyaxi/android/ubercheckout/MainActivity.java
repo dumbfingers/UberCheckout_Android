@@ -625,7 +625,7 @@ public class MainActivity extends Activity {
 					Result result = (Result) tweetResult.get(i);
 					URL image_url = result.getProfile_image_url();
 					try {
-						downloadUrl(image_url, result.getFrom_user_id_str());
+						downloadUrl(image_url, result.getFrom_user());
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
@@ -644,15 +644,13 @@ public class MainActivity extends Activity {
 					for (int i = 0; i < tweetResult.size(); i++) {
 						Result r = (Result) tweetResult.get(i);
 
-						final Bitmap bm = decodeSampledBitmapFromFile(r.getFrom_user_id_str(), 40, 40);
-
-						
+						final Bitmap bm = decodeSampledBitmapFromFile(r.getFrom_user(), 40, 40);
 						
 						if (r.getGeo() != null) {
 							// Set up markers
 							Marker marker = map.addMarker(new MarkerOptions()
 							.position(r.getGeo().getLatLng())
-							.title(r.getFrom_user_name())
+							.title(r.getFrom_user())
 							.snippet(r.getText()));
 							map.setInfoWindowAdapter(new InfoWindowAdapter() {
 
@@ -667,9 +665,10 @@ public class MainActivity extends Activity {
 									// Inflate info windows
 									View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
 									TextView username = (TextView)infoView.findViewById(R.id.textView_username);
+//									TextView twitterId = (TextView)infoView.findViewById(R.id.textView_user);
 									TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
 									ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
-									thumbnail.setImageBitmap(bm);
+									thumbnail.setImageBitmap(decodeSampledBitmapFromFile(marker.getTitle(), 40, 40));
 									username.setText(marker.getTitle());
 									tweets.setText(marker.getSnippet());
 									return infoView;
@@ -683,41 +682,41 @@ public class MainActivity extends Activity {
 							List<Address> addressList;
 							try {
 								addressList = geoCoder.getFromLocationName(r.getLocation(), 1);
-								Address address = addressList.get(0);
-								double longitude = address.getLongitude();
-								double latitude = address.getLatitude();
-								Log.i(TAG, "Get Location: " + longitude + ", " + latitude);
-//								putMarkersOnMap(new LatLng(latitude, longitude), r.getFrom_user_name(), r.getText(), infoView, bm);
-								
-								
-								// Set up markers
-								Marker marker = map.addMarker(new MarkerOptions()
-								.position(new LatLng(latitude, longitude))
-								.title(r.getFrom_user_name())
-								.snippet(r.getText()));
-								map.setInfoWindowAdapter(new InfoWindowAdapter() {
+								if (addressList.size() != 0) {
+									Address address = addressList.get(0);
+									double longitude = address.getLongitude();
+									double latitude = address.getLatitude();
+									Log.i(TAG, "Get Location: " + longitude + ", " + latitude);
+//									putMarkersOnMap(new LatLng(latitude, longitude), r.getFrom_user_name(), r.getText(), infoView, bm);
 
-									@Override
-									public View getInfoWindow(Marker marker) {
+									// Set up markers
+									Marker marker = map.addMarker(new MarkerOptions()
+									.position(new LatLng(latitude, longitude))
+									.title(r.getFrom_user_name())
+									.snippet(r.getText()));
+									map.setInfoWindowAdapter(new InfoWindowAdapter() {
 
-										return null;
-									}
+										@Override
+										public View getInfoWindow(Marker marker) {
 
-									@Override
-									public View getInfoContents(Marker marker) {
-										// Inflate info windows
-										View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
-										TextView username = (TextView)infoView.findViewById(R.id.textView_username);
-										TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
-										ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
-										thumbnail.setImageBitmap(bm);
-										username.setText(marker.getTitle());
-										tweets.setText(marker.getSnippet());
-										return infoView;
-									}
-								});					
-								marker.showInfoWindow();
-								
+											return null;
+										}
+
+										@Override
+										public View getInfoContents(Marker marker) {
+											// Inflate info windows
+											View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
+											TextView username = (TextView)infoView.findViewById(R.id.textView_username);
+											TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
+											ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
+											thumbnail.setImageBitmap(bm);
+											username.setText(marker.getTitle());
+											tweets.setText(marker.getSnippet());
+											return infoView;
+										}
+									});					
+									marker.showInfoWindow();
+								}
 								
 							} catch (IOException e) {
 								// TODO Auto-generated catch block
