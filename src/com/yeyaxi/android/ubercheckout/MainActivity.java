@@ -68,6 +68,7 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.slidingmenu.lib.SlidingMenu;
 import com.yeyaxi.android.ubercheckout.utilities.Constant;
 
 /**
@@ -77,7 +78,6 @@ import com.yeyaxi.android.ubercheckout.utilities.Constant;
  */
 public class MainActivity extends Activity {
 
-	private RibbonMenuView rbmView;
 	private SharedPreferences pref;
 	private static final String TAG = "MainActivity";
 	private SeekBar seekBar_radius;
@@ -103,12 +103,6 @@ public class MainActivity extends Activity {
 
 		pref = getSharedPreferences("pref", MODE_PRIVATE);
 
-		// Set up View
-		seekBar_radius = (SeekBar)findViewById(R.id.seekBar_radius);
-		textView_radius = (TextView) findViewById(R.id.textView_radius);
-		radio_km = (RadioButton) findViewById(R.id.radio_km);
-		radio_mi = (RadioButton) findViewById(R.id.radio_mi);
-
 		//Set up map view
 		map = ((MapFragment) getFragmentManager().findFragmentById(R.id.map)).getMap();
 
@@ -116,9 +110,24 @@ public class MainActivity extends Activity {
 
 		mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
-		// Sliding Menu
-		rbmView = (RibbonMenuView) findViewById(R.id.ribbonMenuView);
-
+		// Sliding Menu settings
+		SlidingMenu menu = new SlidingMenu(this);
+		menu.setMode(SlidingMenu.LEFT);
+		// Sliding from margin will open the menu
+		menu.setTouchModeAbove(SlidingMenu.TOUCHMODE_MARGIN);
+		menu.setShadowWidthRes(R.dimen.shadow_width);
+		menu.setShadowDrawable(R.drawable.shadow);
+		menu.setBehindOffsetRes(R.dimen.slidingmenu_offset);
+		menu.setFadeDegree(0.35f);
+		menu.attachToActivity(this, SlidingMenu.SLIDING_CONTENT);
+		menu.setMenu(R.layout.slide_menu);
+		
+		// Set up View
+		seekBar_radius = (SeekBar)menu.findViewById(R.id.seekBar_radius);
+		textView_radius = (TextView)menu.findViewById(R.id.textView_radius);
+		radio_km = (RadioButton)menu.findViewById(R.id.radio_km);
+		radio_mi = (RadioButton)menu.findViewById(R.id.radio_mi);
+				
 		// Set up the Language Spinner
 		spinner_language = (Spinner) findViewById(R.id.spinner_language);
 
@@ -268,7 +277,6 @@ public class MainActivity extends Activity {
 		// Handle item selection
 		switch (item.getItemId()) {
 		case R.id.action_options:
-			rbmView.toggleMenu();
 			return true;
 
 		default:
