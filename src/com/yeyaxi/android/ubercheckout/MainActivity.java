@@ -692,7 +692,7 @@ public class MainActivity extends Activity {
 									// Set up markers
 									Marker marker = map.addMarker(new MarkerOptions()
 									.position(new LatLng(latitude, longitude))
-									.title(r.getFrom_user_name())
+									.title(r.getFrom_user())
 									.snippet(r.getText()));
 									map.setInfoWindowAdapter(new InfoWindowAdapter() {
 
@@ -709,7 +709,7 @@ public class MainActivity extends Activity {
 											TextView username = (TextView)infoView.findViewById(R.id.textView_username);
 											TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
 											ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
-											thumbnail.setImageBitmap(bm);
+											thumbnail.setImageBitmap(decodeSampledBitmapFromFile(marker.getTitle(), 40, 40));
 											username.setText(marker.getTitle());
 											tweets.setText(marker.getSnippet());
 											return infoView;
