@@ -9,7 +9,7 @@ This project uses [SlidingMenu][1] which is Developed By **Jeremy Feinstein**
 License
 -------
 
-    Copyright 2012 Jeremy Feinstein
+    Copyright 2013 Yaxi Ye
     
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.

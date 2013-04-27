@@ -19,7 +19,6 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.SearchManager;
@@ -44,8 +43,6 @@ import android.provider.Settings;
 import android.util.JsonReader;
 import android.util.JsonToken;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
@@ -58,6 +55,9 @@ import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.Spinner;
 import android.widget.TextView;
 
+import com.actionbarsherlock.app.SherlockActivity;
+import com.actionbarsherlock.view.Menu;
+import com.actionbarsherlock.view.MenuItem;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.GoogleMap.InfoWindowAdapter;
@@ -76,7 +76,7 @@ import com.yeyaxi.android.ubercheckout.utilities.Constant;
  * @author Yaxi Ye
  *
  */
-public class MainActivity extends Activity {
+public class MainActivity extends SherlockActivity {
 
 	private SharedPreferences pref;
 	private static final String TAG = "MainActivity";
@@ -97,7 +97,7 @@ public class MainActivity extends Activity {
 	private float[] coords = new float[2];// coords[0] is latitude, coords[1] is longitude
 
 	@Override
-	protected void onCreate(Bundle savedInstanceState) {
+	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
@@ -121,6 +121,9 @@ public class MainActivity extends Activity {
 		menu.setFadeDegree(0.35f);
 		menu.attachToActivity(this, SlidingMenu.SLIDING_CONTENT);
 		menu.setMenu(R.layout.slide_menu);
+		
+		// Set ActionBarSherlock
+		getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 		
 		// Set up View
 		seekBar_radius = (SeekBar)menu.findViewById(R.id.seekBar_radius);
@@ -262,27 +265,35 @@ public class MainActivity extends Activity {
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.main, menu);
+		getSupportMenuInflater().inflate(R.menu.main, menu);
 
-		// Get the SearchView and set the searchable configuration
+//		// Get the SearchView and set the searchable configuration
 		SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
 		SearchView searchView = (SearchView) menu.findItem(R.id.action_search).getActionView();
 		searchView.setSearchableInfo(searchManager.getSearchableInfo(getComponentName()));
 		searchView.setIconifiedByDefault(false); // Do not iconify the widget; expand it by default
+		
+		//Create the search view
+//        SearchView searchView = new SearchView(getSupportActionBar().getThemedContext());
+//		SearchView searchView = (SearchView) menu.findItem(R.id.action_search).getActionView();
+//        searchView.setQueryHint("Search for keywords");
+//        menu.add("Search")
+//        	.setIcon(R.drawable.action_search)
+//        	.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM | MenuItem.SHOW_AS_ACTION_COLLAPSE_ACTION_VIEW);
 		return true;
 	}
 
-	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
-		// Handle item selection
-		switch (item.getItemId()) {
-		case R.id.action_options:
-			return true;
-
-		default:
-			return super.onOptionsItemSelected(item);
-		}
-	}
+//	@Override
+//	public boolean onOptionsItemSelected(MenuItem item) {
+//		// Handle item selection
+//		switch (item.getItemId()) {
+//		case R.id.action_options:
+//			return true;
+//
+//		default:
+//			return super.onOptionsItemSelected(item);
+//		}
+//	}
 
 	public void performSearch(String keywords) {
 		// Check if we need to append some search parameters
@@ -444,7 +455,7 @@ public class MainActivity extends Activity {
 			coords[0] = (float)coordLat;
 			coords[1] = (float)coordLng;
 			map.clear();
-			Marker m = map.addMarker(new MarkerOptions().position(location));				
+			Marker m = map.addMarker(new MarkerOptions().position(location));
 			map.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 18));
 			map.animateCamera(CameraUpdateFactory.zoomTo(14), 2000, null);
 			// Instantiates a new CircleOptions object and defines the center and radius
@@ -456,7 +467,7 @@ public class MainActivity extends Activity {
 			Circle circle = map.addCircle(circleOptions);
 			circle.setFillColor(Color.argb(100, 81, 207, 245));
 			circle.setStrokeColor(Color.argb(255, 81, 207, 245));
-			m.setDraggable(true);			
+			m.setDraggable(true);
 		}
 	}
 
@@ -578,7 +589,7 @@ public class MainActivity extends Activity {
 							reader.beginObject();
 							while(reader.hasNext()) {
 
-								//		    					String s = reader.nextName();
+//								String s = reader.nextName();
 								if (name.equals("coordinates")) {
 									reader.beginArray();
 									double latitude = 0;

@@ -1,10 +1,10 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android" >
 
-    <item
+<!--     <item
         android:id="@+id/action_options"
         android:orderInCategory="100"
         android:showAsAction="always"
-        android:title="@string/action_options"/>
+        android:title="@string/action_options"/> -->
         <item android:id="@+id/action_search"
           android:title="@string/title_search"
           android:icon="@drawable/action_search"
