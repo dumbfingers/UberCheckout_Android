@@ -17,9 +17,9 @@
         <item>mi</item>
         <item>km</item>
     </string-array>
-    <string name="title_radius">Search Area</string>
-    <string name="title_language">Set Language</string>
-    <string name="title_location">Set Location</string>
+    <string name="title_radius">Search Distance</string>
+    <string name="title_language">Search Language</string>
+    <string name="title_location">Search Location</string>
     <string name="title_search_keywords">Key Words</string>
     <string name="radio_title_km">km</string>
     <string name="radio_title_mi">mi</string>

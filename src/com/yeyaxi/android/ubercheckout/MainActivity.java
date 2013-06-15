@@ -28,7 +28,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -43,6 +42,7 @@ import android.provider.Settings;
 import android.util.JsonReader;
 import android.util.JsonToken;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
@@ -56,19 +56,20 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.actionbarsherlock.app.SherlockActivity;
+import com.actionbarsherlock.app.SherlockDialogFragment;
+import com.actionbarsherlock.app.SherlockFragmentActivity;
 import com.actionbarsherlock.view.Menu;
-import com.actionbarsherlock.view.MenuItem;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.GoogleMap.InfoWindowAdapter;
+import com.google.android.gms.maps.GoogleMap.OnInfoWindowClickListener;
 import com.google.android.gms.maps.GoogleMap.OnMarkerDragListener;
 import com.google.android.gms.maps.MapFragment;
-import com.google.android.gms.maps.model.Circle;
-import com.google.android.gms.maps.model.CircleOptions;
+import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.slidingmenu.lib.SlidingMenu;
+import com.jeremyfeinstein.slidingmenu.lib.SlidingMenu;
 import com.yeyaxi.android.ubercheckout.utilities.Constant;
 
 /**
@@ -76,7 +77,7 @@ import com.yeyaxi.android.ubercheckout.utilities.Constant;
  * @author Yaxi Ye
  *
  */
-public class MainActivity extends SherlockActivity {
+public class MainActivity extends SherlockFragmentActivity {
 
 	private SharedPreferences pref;
 	private static final String TAG = "MainActivity";
@@ -104,9 +105,9 @@ public class MainActivity extends SherlockActivity {
 		pref = getSharedPreferences("pref", MODE_PRIVATE);
 
 		//Set up map view
-		map = ((MapFragment) getFragmentManager().findFragmentById(R.id.map)).getMap();
+		map = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map)).getMap();
 
-		//		mHandler = new TaskHandler(this); 
+//		mHandler = new TaskHandler(this); 
 
 		mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
@@ -166,12 +167,13 @@ public class MainActivity extends SherlockActivity {
 
 		// Init the value of seek bar as 20
 		seekBar_radius.setIndeterminate(false);
-		seekBar_radius.setProgress(20);
+		seekBar_radius.setProgress(200);
+		updateSlider(seekBar_radius.getProgress());
 		seekBar_radius.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
 
 			@Override
 			public void onStopTrackingTouch(SeekBar seekBar) {
-				// TODO Auto-generated method stub
+				seekBar.getProgress();
 
 			}
 
@@ -184,38 +186,39 @@ public class MainActivity extends SherlockActivity {
 			@Override
 			public void onProgressChanged(SeekBar seekBar, int progress,
 					boolean fromUser) {
-				// TODO Auto-generated method stub
-
+				if (fromUser == true) {
+					updateSlider(progress);
+				}
 			}
 		});
 
 
-		OnMarkerDragListener markerDragListener = new OnMarkerDragListener() {
-
-
-
-			@Override
-			public void onMarkerDragStart(Marker marker) {
-				// Called when the marker drag is started
-
-			}
-
-			@Override
-			public void onMarkerDragEnd(Marker marker) {
-				// Called when the marker is dropped down.
-				coords[0] = (float) marker.getPosition().latitude;
-				coords[1] = (float) marker.getPosition().longitude;
-				//				RestoreUIwithSavedLocation(coords);
-				Log.d(TAG, "Pin Dropped at: " + coords[0] + ", " + coords[1]);
-			}
-
-			@Override
-			public void onMarkerDrag(Marker marker) {
-
-			}
-		};
-
-		map.setOnMarkerDragListener(markerDragListener);
+//		OnMarkerDragListener markerDragListener = new OnMarkerDragListener() {
+//
+//
+//
+//			@Override
+//			public void onMarkerDragStart(Marker marker) {
+//				// Called when the marker drag is started
+//
+//			}
+//
+//			@Override
+//			public void onMarkerDragEnd(Marker marker) {
+//				// Called when the marker is dropped down.
+//				coords[0] = (float) marker.getPosition().latitude;
+//				coords[1] = (float) marker.getPosition().longitude;
+//				//				RestoreUIwithSavedLocation(coords);
+//				Log.d(TAG, "Pin Dropped at: " + coords[0] + ", " + coords[1]);
+//			}
+//
+//			@Override
+//			public void onMarkerDrag(Marker marker) {
+//
+//			}
+//		};
+//
+//		map.setOnMarkerDragListener(markerDragListener);
 
 	}
 
@@ -294,7 +297,19 @@ public class MainActivity extends SherlockActivity {
 //			return super.onOptionsItemSelected(item);
 //		}
 //	}
+	
+	/**
+	 * Set the radius while sliding the progress slider
+	 * @param sliderProgress the current value of the slider
+	 */
+	private void updateSlider(int sliderProgress) {
+		textView_radius.setText(String.valueOf(sliderProgress));
+	}
 
+	/**
+	 * Perform search using the given keywords
+	 * @param keywords to be searched
+	 */
 	public void performSearch(String keywords) {
 		// Check if we need to append some search parameters
 		Log.i(TAG, Integer.toString(seekBar_radius.getProgress()));
@@ -458,15 +473,15 @@ public class MainActivity extends SherlockActivity {
 			Marker m = map.addMarker(new MarkerOptions().position(location));
 			map.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 18));
 			map.animateCamera(CameraUpdateFactory.zoomTo(14), 2000, null);
-			// Instantiates a new CircleOptions object and defines the center and radius
-			CircleOptions circleOptions = new CircleOptions()
-			.center(location)
-			.radius(1000); // In meters
-
-			// Get back the mutable Circle
-			Circle circle = map.addCircle(circleOptions);
-			circle.setFillColor(Color.argb(100, 81, 207, 245));
-			circle.setStrokeColor(Color.argb(255, 81, 207, 245));
+//			// Instantiates a new CircleOptions object and defines the center and radius
+//			CircleOptions circleOptions = new CircleOptions()
+//			.center(location)
+//			.radius(1000); // In meters
+//
+//			// Get back the mutable Circle
+//			Circle circle = map.addCircle(circleOptions);
+//			circle.setFillColor(Color.argb(100, 81, 207, 245));
+//			circle.setStrokeColor(Color.argb(255, 81, 207, 245));
 			m.setDraggable(true);
 		}
 	}
@@ -488,7 +503,7 @@ public class MainActivity extends SherlockActivity {
 			ArrayList<Result> resultList = new ArrayList<Result>();
 			resultList = readTwitterFeed(params[0]);
 			return resultList;
-			//    		return readTwitterFeed(params[0]);
+//    		return readTwitterFeed(params[0]);
 		}
 
 		@Override
@@ -631,7 +646,12 @@ public class MainActivity extends SherlockActivity {
 
 			return new Result(from_user, from_user_id_str, from_user_name, text, geo, location, profile_image_url);			
 		}
-
+		
+		/**
+		 * 
+		 * @author Yaxi Ye
+		 *
+		 */
 		private class DrawTweetMarkers extends AsyncTask<ArrayList<Result>, Void, Void> {
 			private ArrayList<Result> tweetResult;
 
@@ -671,6 +691,7 @@ public class MainActivity extends SherlockActivity {
 							.position(r.getGeo().getLatLng())
 							.title(r.getFrom_user())
 							.snippet(r.getText()));
+							map.setOnInfoWindowClickListener(infoClickListener);
 							map.setInfoWindowAdapter(new InfoWindowAdapter() {
 
 								@Override
@@ -678,7 +699,7 @@ public class MainActivity extends SherlockActivity {
 
 									return null;
 								}
-
+								// Set up Infor windows
 								@Override
 								public View getInfoContents(Marker marker) {
 									// Inflate info windows
@@ -713,6 +734,7 @@ public class MainActivity extends SherlockActivity {
 									.position(new LatLng(latitude, longitude))
 									.title(r.getFrom_user())
 									.snippet(r.getText()));
+									map.setOnInfoWindowClickListener(infoClickListener);
 									map.setInfoWindowAdapter(new InfoWindowAdapter() {
 
 										@Override
@@ -745,8 +767,27 @@ public class MainActivity extends SherlockActivity {
 						}
 					}
 				}
+				
+
 			}
 			
+			// Handle the clicks on info window
+			OnInfoWindowClickListener infoClickListener = new OnInfoWindowClickListener() {
+				
+				@Override
+				public void onInfoWindowClick(Marker marker) {
+					TweetDialog dialog = new TweetDialog();
+					// Create a bundel to pass the info to tweets dialog
+					// We'll decode the user's profile image later in tweets dialog
+					Bundle args = new Bundle();
+					args.putString("username", marker.getTitle());
+					args.putString("tweets", marker.getSnippet());
+					dialog.setArguments(args);
+					dialog.show(getSupportFragmentManager(), "");
+				}
+			};
+			
+
 //			/**
 //			 * 
 //			 * @param position
@@ -903,4 +944,6 @@ public class MainActivity extends SherlockActivity {
 
 		}
 	}
+	
+	
 }
