@@ -11,6 +11,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import oauth.signpost.OAuthProvider;
+import oauth.signpost.basic.DefaultOAuthProvider;
+import oauth.signpost.commonshttp.CommonsHttpOAuthConsumer;
+import oauth.signpost.commonshttp.CommonsHttpOAuthProvider;
+
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
@@ -19,6 +24,9 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 
+import twitter4j.Twitter;
+import twitter4j.TwitterFactory;
+import twitter4j.auth.AccessToken;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.SearchManager;
@@ -35,6 +43,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
@@ -42,7 +51,6 @@ import android.provider.Settings;
 import android.util.JsonReader;
 import android.util.JsonToken;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
@@ -54,17 +62,14 @@ import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
-import com.actionbarsherlock.app.SherlockActivity;
-import com.actionbarsherlock.app.SherlockDialogFragment;
 import com.actionbarsherlock.app.SherlockFragmentActivity;
 import com.actionbarsherlock.view.Menu;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.GoogleMap.InfoWindowAdapter;
 import com.google.android.gms.maps.GoogleMap.OnInfoWindowClickListener;
-import com.google.android.gms.maps.GoogleMap.OnMarkerDragListener;
-import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
@@ -96,7 +101,18 @@ public class MainActivity extends SherlockFragmentActivity {
 	private static final int TWO_MINUTES = 1000 * 60 * 2;
 	private static GoogleMap map;
 	private float[] coords = new float[2];// coords[0] is latitude, coords[1] is longitude
-
+	
+	private static final String PREF_KEY_OAUTH_TOKEN = "oauth_token";
+	private static final String PREF_KEY_OAUTH_SECRET = "oauth_token_secret";
+	private static final String PREF_KEY_TWITTER_LOGIN = "isTwitterLogedIn";
+	
+	private CommonsHttpOAuthConsumer httpOauthConsumer; 
+	private OAuthProvider httpOauthprovider;
+	static final String TWITTER_CALLBACK_URL = "oauth://ubercheckout";
+	static String TWITTER_CONSUMER_KEY = "mcz7i4BDru2TE1LoTWbQ";
+	static String TWITTER_CONSUMER_SECRET = "xl0HHTUToe5860H4SikYcmi2bL38gqdUmUAAlJ7SeU8";
+	private Twitter twitter;
+	
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -191,35 +207,7 @@ public class MainActivity extends SherlockFragmentActivity {
 				}
 			}
 		});
-
-
-//		OnMarkerDragListener markerDragListener = new OnMarkerDragListener() {
-//
-//
-//
-//			@Override
-//			public void onMarkerDragStart(Marker marker) {
-//				// Called when the marker drag is started
-//
-//			}
-//
-//			@Override
-//			public void onMarkerDragEnd(Marker marker) {
-//				// Called when the marker is dropped down.
-//				coords[0] = (float) marker.getPosition().latitude;
-//				coords[1] = (float) marker.getPosition().longitude;
-//				//				RestoreUIwithSavedLocation(coords);
-//				Log.d(TAG, "Pin Dropped at: " + coords[0] + ", " + coords[1]);
-//			}
-//
-//			@Override
-//			public void onMarkerDrag(Marker marker) {
-//
-//			}
-//		};
-//
-//		map.setOnMarkerDragListener(markerDragListener);
-
+		
 	}
 
 
@@ -262,6 +250,50 @@ public class MainActivity extends SherlockFragmentActivity {
 			// Do Search in a separate thread
 
 			performSearch(keywords);
+		}
+//		if (Intent.ACTION_VIEW.equals("x-ubercheckout-oauth-twitter")) {
+//			Log.d(TAG, "Twitter Callback");
+//		}
+		
+		Uri uri = intent.getData();
+		if (isTwitterLoggedInAlready() == false) {
+			//Check if you got NewIntent event due to Twitter Call back only 
+			if (uri != null && uri.toString().startsWith(TWITTER_CALLBACK_URL)) { 
+				String verifier = uri.getQueryParameter(oauth.signpost.OAuth.OAUTH_VERIFIER); 
+				Toast.makeText(this, verifier, Toast.LENGTH_LONG).show(); 
+				try { 
+					// this will populate token and token_secret in consumer 
+					httpOauthprovider.retrieveAccessToken(httpOauthConsumer, verifier); 
+
+					String userKey = httpOauthConsumer.getToken(); 
+					String userSecret = httpOauthConsumer.getConsumerSecret(); 
+					Toast.makeText(this, userKey, Toast.LENGTH_LONG).show(); 
+					Toast.makeText(this, userSecret, Toast.LENGTH_LONG).show(); 
+
+					AccessToken accessToken = new AccessToken(httpOauthConsumer.getToken(), httpOauthConsumer.getConsumerSecret()); 
+
+					twitter = new TwitterFactory().getInstance();
+					twitter.setOAuthConsumer(TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET); 
+
+					twitter.setOAuthAccessToken(accessToken);
+					
+					SharedPreferences.Editor e = pref.edit();
+
+					// After getting access token, access token secret
+					// store them in application preferences
+					e.putString(PREF_KEY_OAUTH_TOKEN, accessToken.getToken());
+					e.putString(PREF_KEY_OAUTH_SECRET, accessToken.getTokenSecret());
+
+					// Store login status - true
+					e.putBoolean(PREF_KEY_TWITTER_LOGIN, true);
+					e.commit(); // save changes
+
+					Log.e("Twitter OAuth Token", "> " + accessToken.getToken());
+				} catch (Exception e) {
+					Log.d("", e.getMessage());
+					Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+				}
+			}
 		}
 	}
 
@@ -329,11 +361,24 @@ public class MainActivity extends SherlockFragmentActivity {
 					"&geocode=" + coords[0] + "," + coords[1] + "," + seekBar_radius.getProgress() + unit;
 			Log.i(TAG, query);
 			PerformSearch task = new PerformSearch();
-			task.execute(query);
+//			task.execute(query);
+			// Do OAuth
+			oAuth.execute();
 			//			new PerformSearch().execute(query);
 		}
 
 	}
+	
+	AsyncTask<Void, Void, Void> oAuth = new AsyncTask<Void, Void, Void>() {
+
+		@Override
+		protected Void doInBackground(Void... params) {
+			doOauth();
+			return null;
+		}
+		
+	};
+	
 
 	private void getCurrentLocation() {
 		// Show mapview, drop position pin
@@ -945,5 +990,29 @@ public class MainActivity extends SherlockFragmentActivity {
 		}
 	}
 	
+	private void doOauth() { 
+		try { 
+			httpOauthConsumer = new CommonsHttpOAuthConsumer(TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET); 
+			httpOauthprovider = new CommonsHttpOAuthProvider("https://api.twitter.com/oauth/request_token", 
+					"https://api.twitter.com/oauth/access_token", 
+					"https://api.twitter.com/oauth/authorize"); 
+			String authUrl = 
+					httpOauthprovider.retrieveRequestToken(httpOauthConsumer, TWITTER_CALLBACK_URL); 
+
+			this.startActivity(new Intent(Intent.ACTION_VIEW, 
+					Uri.parse(authUrl))); 
+		} catch (Exception e) {
+//			Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+			e.printStackTrace();
+		}
+	}
 	
+	/**
+	 * Check user already logged in your application using twitter Login flag is
+	 * fetched from Shared Preferences
+	 * */
+	private boolean isTwitterLoggedInAlready() {
+		// return twitter login status from Shared Preferences
+		return pref.getBoolean(PREF_KEY_TWITTER_LOGIN, false);
+	}
 }
