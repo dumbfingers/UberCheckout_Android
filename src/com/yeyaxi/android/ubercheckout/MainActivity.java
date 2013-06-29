@@ -101,18 +101,20 @@ public class MainActivity extends SherlockFragmentActivity {
 	private static final int TWO_MINUTES = 1000 * 60 * 2;
 	private static GoogleMap map;
 	private float[] coords = new float[2];// coords[0] is latitude, coords[1] is longitude
-	
+
 	private static final String PREF_KEY_OAUTH_TOKEN = "oauth_token";
 	private static final String PREF_KEY_OAUTH_SECRET = "oauth_token_secret";
 	private static final String PREF_KEY_TWITTER_LOGIN = "isTwitterLogedIn";
-	
+
 	private CommonsHttpOAuthConsumer httpOauthConsumer; 
 	private OAuthProvider httpOauthprovider;
 	static final String TWITTER_CALLBACK_URL = "oauth://ubercheckout";
 	static String TWITTER_CONSUMER_KEY = "mcz7i4BDru2TE1LoTWbQ";
 	static String TWITTER_CONSUMER_SECRET = "xl0HHTUToe5860H4SikYcmi2bL38gqdUmUAAlJ7SeU8";
 	private Twitter twitter;
-	
+
+	private String query;
+
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -123,7 +125,7 @@ public class MainActivity extends SherlockFragmentActivity {
 		//Set up map view
 		map = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map)).getMap();
 
-//		mHandler = new TaskHandler(this); 
+		//		mHandler = new TaskHandler(this); 
 
 		mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
@@ -138,16 +140,16 @@ public class MainActivity extends SherlockFragmentActivity {
 		menu.setFadeDegree(0.35f);
 		menu.attachToActivity(this, SlidingMenu.SLIDING_CONTENT);
 		menu.setMenu(R.layout.slide_menu);
-		
+
 		// Set ActionBarSherlock
 		getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-		
+
 		// Set up View
 		seekBar_radius = (SeekBar)menu.findViewById(R.id.seekBar_radius);
 		textView_radius = (TextView)menu.findViewById(R.id.textView_radius);
 		radio_km = (RadioButton)menu.findViewById(R.id.radio_km);
 		radio_mi = (RadioButton)menu.findViewById(R.id.radio_mi);
-				
+
 		// Set up the Language Spinner
 		spinner_language = (Spinner) findViewById(R.id.spinner_language);
 
@@ -207,7 +209,7 @@ public class MainActivity extends SherlockFragmentActivity {
 				}
 			}
 		});
-		
+
 	}
 
 
@@ -222,7 +224,7 @@ public class MainActivity extends SherlockFragmentActivity {
 			Dialog dialog = enableGpsDialog(this);
 			dialog.show();
 		}
-		
+
 		// Locate the user automatically as the app starts
 		getCurrentLocation();
 	}
@@ -251,10 +253,10 @@ public class MainActivity extends SherlockFragmentActivity {
 
 			performSearch(keywords);
 		}
-//		if (Intent.ACTION_VIEW.equals("x-ubercheckout-oauth-twitter")) {
-//			Log.d(TAG, "Twitter Callback");
-//		}
-		
+		//		if (Intent.ACTION_VIEW.equals("x-ubercheckout-oauth-twitter")) {
+		//			Log.d(TAG, "Twitter Callback");
+		//		}
+
 		Uri uri = intent.getData();
 		if (isTwitterLoggedInAlready() == false) {
 			//Check if you got NewIntent event due to Twitter Call back only 
@@ -276,7 +278,7 @@ public class MainActivity extends SherlockFragmentActivity {
 					twitter.setOAuthConsumer(TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET); 
 
 					twitter.setOAuthAccessToken(accessToken);
-					
+
 					SharedPreferences.Editor e = pref.edit();
 
 					// After getting access token, access token secret
@@ -288,10 +290,9 @@ public class MainActivity extends SherlockFragmentActivity {
 					e.putBoolean(PREF_KEY_TWITTER_LOGIN, true);
 					e.commit(); // save changes
 
-					Log.e("Twitter OAuth Token", "> " + accessToken.getToken());
+					Log.d(TAG, "Twitter OAuth Token > " + accessToken.getToken());
 				} catch (Exception e) {
-					Log.d("", e.getMessage());
-					Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+					e.printStackTrace();
 				}
 			}
 		}
@@ -301,35 +302,16 @@ public class MainActivity extends SherlockFragmentActivity {
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
 		getSupportMenuInflater().inflate(R.menu.main, menu);
-
-//		// Get the SearchView and set the searchable configuration
+		// Get the SearchView and set the searchable configuration
 		SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
 		SearchView searchView = (SearchView) menu.findItem(R.id.action_search).getActionView();
 		searchView.setSearchableInfo(searchManager.getSearchableInfo(getComponentName()));
 		searchView.setIconifiedByDefault(false); // Do not iconify the widget; expand it by default
-		
-		//Create the search view
-//        SearchView searchView = new SearchView(getSupportActionBar().getThemedContext());
-//		SearchView searchView = (SearchView) menu.findItem(R.id.action_search).getActionView();
-//        searchView.setQueryHint("Search for keywords");
-//        menu.add("Search")
-//        	.setIcon(R.drawable.action_search)
-//        	.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM | MenuItem.SHOW_AS_ACTION_COLLAPSE_ACTION_VIEW);
+
 		return true;
 	}
 
-//	@Override
-//	public boolean onOptionsItemSelected(MenuItem item) {
-//		// Handle item selection
-//		switch (item.getItemId()) {
-//		case R.id.action_options:
-//			return true;
-//
-//		default:
-//			return super.onOptionsItemSelected(item);
-//		}
-//	}
-	
+
 	/**
 	 * Set the radius while sliding the progress slider
 	 * @param sliderProgress the current value of the slider
@@ -357,18 +339,19 @@ public class MainActivity extends SherlockFragmentActivity {
 			else if (radio_mi.isChecked())
 				unit = "mi";
 
-			String query = Constant.BASE_SEARCH_URL + keywords + 
+			query = Constant.BASE_SEARCH_URL + keywords + 
 					"&geocode=" + coords[0] + "," + coords[1] + "," + seekBar_radius.getProgress() + unit;
 			Log.i(TAG, query);
-			PerformSearch task = new PerformSearch();
-//			task.execute(query);
-			// Do OAuth
-			oAuth.execute();
-			//			new PerformSearch().execute(query);
+			if (isTwitterLoggedInAlready() == false) {
+				// Do OAuth
+				oAuth.execute();
+			} else {
+				PerformSearch.execute(query);
+			}
 		}
 
 	}
-	
+
 	AsyncTask<Void, Void, Void> oAuth = new AsyncTask<Void, Void, Void>() {
 
 		@Override
@@ -376,9 +359,14 @@ public class MainActivity extends SherlockFragmentActivity {
 			doOauth();
 			return null;
 		}
-		
+
+		@Override
+		protected void onPostExecute(Void v) {
+			PerformSearch.execute(query);
+		}
+
 	};
-	
+
 
 	private void getCurrentLocation() {
 		// Show mapview, drop position pin
@@ -449,8 +437,6 @@ public class MainActivity extends SherlockFragmentActivity {
 
 	private void updateUIwithLocation(Location location) {
 
-		//		Message.obtain(mHandler, UPDATE_LATLNG, location.getLatitude() + ", " + location.getLongitude()).sendToTarget();
-		//		Message.obtain(mHandler, DRAW_MARKER, location).sendToTarget();
 		new LocationUpdate().execute(location);
 	}
 
@@ -473,7 +459,7 @@ public class MainActivity extends SherlockFragmentActivity {
 
 		@Override
 		public void onLocationChanged(Location location) {
-			updateUIwithLocation(location);			
+			updateUIwithLocation(location);
 		}
 	};
 
@@ -518,15 +504,6 @@ public class MainActivity extends SherlockFragmentActivity {
 			Marker m = map.addMarker(new MarkerOptions().position(location));
 			map.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 18));
 			map.animateCamera(CameraUpdateFactory.zoomTo(14), 2000, null);
-//			// Instantiates a new CircleOptions object and defines the center and radius
-//			CircleOptions circleOptions = new CircleOptions()
-//			.center(location)
-//			.radius(1000); // In meters
-//
-//			// Get back the mutable Circle
-//			Circle circle = map.addCircle(circleOptions);
-//			circle.setFillColor(Color.argb(100, 81, 207, 245));
-//			circle.setStrokeColor(Color.argb(255, 81, 207, 245));
 			m.setDraggable(true);
 		}
 	}
@@ -537,9 +514,7 @@ public class MainActivity extends SherlockFragmentActivity {
 	 * @author Yaxi Ye
 	 *
 	 */
-	private class PerformSearch extends AsyncTask<String, Void, ArrayList<Result>> {
-
-		//    	public List resultList;
+	AsyncTask<String, Void, ArrayList<Result>> PerformSearch = new AsyncTask<String, Void, ArrayList<Result>>() {
 
 		private static final String TAG = "PerformSearch";
 
@@ -548,465 +523,413 @@ public class MainActivity extends SherlockFragmentActivity {
 			ArrayList<Result> resultList = new ArrayList<Result>();
 			resultList = readTwitterFeed(params[0]);
 			return resultList;
-//    		return readTwitterFeed(params[0]);
 		}
 
 		@Override
 		protected void onPostExecute(ArrayList<Result> list) {
 			super.onPostExecute(list);
-			Log.i(TAG, "Test");
 			// Put markers on the map
-			DrawTweetMarkers task = new DrawTweetMarkers();
-			task.execute(list);
+			DrawTweetMarkers.execute(list);
 		}
+	};
 
-		private ArrayList<Result> readTwitterFeed(String searchString) {
-			//		StringBuilder builder = new StringBuilder();
-			HttpClient client = new DefaultHttpClient();
-			HttpGet httpGet = new HttpGet(searchString);
-			try {
-				HttpResponse response = client.execute(httpGet);
-				StatusLine statusLine = response.getStatusLine();
-				int statusCode = statusLine.getStatusCode();
-				if (statusCode == 200) {
-					HttpEntity entity = response.getEntity();
-					InputStream content = entity.getContent();
-					JsonReader reader = new JsonReader(new InputStreamReader(content, "UTF-8"));
-					try {
-						return readResultsArray(reader);
-					}     finally {
-						reader.close();
-					}
-				} else {
-					Log.e(TAG, "Failed to download file");
+	private ArrayList<Result> readTwitterFeed(String searchString) {
+
+		HttpClient client = new DefaultHttpClient();
+		HttpGet httpGet = new HttpGet(searchString);
+		try {
+			HttpResponse response = client.execute(httpGet);
+			StatusLine statusLine = response.getStatusLine();
+			int statusCode = statusLine.getStatusCode();
+			if (statusCode == 200) {
+				HttpEntity entity = response.getEntity();
+				InputStream content = entity.getContent();
+				JsonReader reader = new JsonReader(new InputStreamReader(content, "UTF-8"));
+				try {
+					return readResultsArray(reader);
+				}     finally {
+					reader.close();
 				}
-			} catch (ClientProtocolException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
+			} else {
+				Log.e(TAG, "Failed to download file");
 			}
+		} catch (ClientProtocolException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+
+	private ArrayList<Result> readResultsArray(JsonReader reader) throws IOException {
+		ArrayList<Result> results = new ArrayList<Result>();
+
+		reader.beginObject();
+		while (reader.hasNext()) {
+			String name = reader.nextName();
+			if (name.equals("results")){
+				reader.beginArray();
+				while (reader.hasNext()) {
+					results.add(readResult(reader));
+				}
+				reader.endArray();
+			} else {
+				reader.skipValue();
+			}
+		}
+		reader.endObject();
+
+		return results;
+	}
+
+
+	private Result readResult(JsonReader reader) throws IOException {
+
+		String from_user = null, 
+				from_user_id_str = null, 
+				from_user_name = null,
+				text = null,
+				location = null;
+		Geo geo = null;
+		URL profile_image_url = null;
+
+		reader.beginObject();
+		while (reader.hasNext()) {
+			String name = reader.nextName();
+			if (name.equals("from_user")){
+
+				from_user = reader.nextString();
+				Log.i(TAG, from_user);
+			} else if (name.equals("from_user_id_str")) {
+
+				from_user_id_str = reader.nextString();
+				Log.i(TAG, from_user_id_str);
+			} else if (name.equals("from_user_name")) {
+
+				from_user_name = reader.nextString();
+				Log.i(TAG, from_user_name);
+			} else if (name.equals("geo")) {
+
+				if (reader.hasNext()) {
+					JsonToken peek = reader.peek();
+					if (peek == JsonToken.NULL)
+					{
+						reader.skipValue();
+					}
+					else
+					{
+						reader.beginObject();
+						while(reader.hasNext()) {
+							if (name.equals("coordinates")) {
+								reader.beginArray();
+								double latitude = 0;
+								double longitude = 0;
+								while (reader.hasNext()) {
+									latitude = reader.nextDouble();
+									longitude = reader.nextDouble();
+									Log.i(TAG, latitude + ", " + longitude);
+									geo = new Geo(latitude, longitude);
+								}
+								reader.endArray();
+							} else {
+								reader.skipValue();
+							}
+						}
+						reader.endObject();
+					}
+				}
+			} else if (name.equals("location")) {
+
+				location = reader.nextString();
+				Log.i(TAG, location);
+			} else if (name.equals("profile_image_url")) {
+
+				profile_image_url = new URL(reader.nextString());
+
+			} else if (name.equals("text")) {
+
+				text = reader.nextString();
+				Log.i(TAG, text);
+			} else {
+
+				reader.skipValue();
+
+			}
+
+		}
+		reader.endObject();
+
+		return new Result(from_user, from_user_id_str, from_user_name, text, geo, location, profile_image_url);			
+	}
+
+	AsyncTask<ArrayList<Result>, Void, Void> DrawTweetMarkers = new AsyncTask<ArrayList<Result>, Void, Void>(){
+		private ArrayList<Result> tweetResult;
+
+		@Override
+		protected Void doInBackground(ArrayList<Result>... params) {
+			tweetResult = new ArrayList<Result>();
+			tweetResult = params[0];
+
+			for (int i = 0; i < tweetResult.size(); i++) {
+				Result result = (Result) tweetResult.get(i);
+				URL image_url = result.getProfile_image_url();
+				try {
+					downloadUrl(image_url, result.getFrom_user());
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+
 			return null;
 		}
 
-
-		private ArrayList<Result> readResultsArray(JsonReader reader) throws IOException {
-			ArrayList<Result> results = new ArrayList<Result>();
-
-			reader.beginObject();
-			while (reader.hasNext()) {
-				String name = reader.nextName();
-				if (name.equals("results")){
-					reader.beginArray();
-					while (reader.hasNext()) {
-						results.add(readResult(reader));
-					}
-					reader.endArray();
-				} else {
-					reader.skipValue();
-				}
-			}
-			reader.endObject();
-
-			return results;
-		}
-
-
-		private Result readResult(JsonReader reader) throws IOException {
-
-			String from_user = null, 
-					from_user_id_str = null, 
-					from_user_name = null,
-					text = null,
-					location = null;
-			Geo geo = null;
-			URL profile_image_url = null;
-
-			reader.beginObject();
-			while (reader.hasNext()) {
-				String name = reader.nextName();
-				if (name.equals("from_user")){
-
-					from_user = reader.nextString();
-					Log.i(TAG, from_user);
-				} else if (name.equals("from_user_id_str")) {
-
-					from_user_id_str = reader.nextString();
-					Log.i(TAG, from_user_id_str);
-				} else if (name.equals("from_user_name")) {
-
-					from_user_name = reader.nextString();
-					Log.i(TAG, from_user_name);
-				} else if (name.equals("geo")) {
-
-					if (reader.hasNext()) {
-						JsonToken peek = reader.peek();
-						if (peek == JsonToken.NULL)
-						{
-							reader.skipValue();
-						}
-						else
-						{
-							reader.beginObject();
-							while(reader.hasNext()) {
-
-//								String s = reader.nextName();
-								if (name.equals("coordinates")) {
-									reader.beginArray();
-									double latitude = 0;
-									double longitude = 0;
-									while (reader.hasNext()) {
-										latitude = reader.nextDouble();
-										longitude = reader.nextDouble();
-										Log.i(TAG, latitude + ", " + longitude);
-										geo = new Geo(latitude, longitude);
-									}
-									reader.endArray();
-								} else {
-									reader.skipValue();
-								}
-							}
-							reader.endObject();
-						}
-					}
-				} else if (name.equals("location")) {
-					
-					location = reader.nextString();
-					Log.i(TAG, location);
-				} else if (name.equals("profile_image_url")) {
-
-					profile_image_url = new URL(reader.nextString());
-
-				} else if (name.equals("text")) {
-
-					text = reader.nextString();
-					Log.i(TAG, text);
-				} else {
-
-					reader.skipValue();
-
-				}
-
-			}
-			reader.endObject();
-
-			return new Result(from_user, from_user_id_str, from_user_name, text, geo, location, profile_image_url);			
-		}
-		
-		/**
-		 * 
-		 * @author Yaxi Ye
-		 *
-		 */
-		private class DrawTweetMarkers extends AsyncTask<ArrayList<Result>, Void, Void> {
-			private ArrayList<Result> tweetResult;
-
-			@Override
-			protected Void doInBackground(ArrayList<Result>... params) {
-				tweetResult = new ArrayList<Result>();
-				tweetResult = params[0];
-
+		@Override
+		protected void onPostExecute(Void v) {
+			// Clear Map first
+			map.clear();
+			map.animateCamera(CameraUpdateFactory.zoomTo(5), 2000, null);
+			// put markers
+			if (tweetResult != null && tweetResult.isEmpty() == false) {
 				for (int i = 0; i < tweetResult.size(); i++) {
-					Result result = (Result) tweetResult.get(i);
-					URL image_url = result.getProfile_image_url();
-					try {
-						downloadUrl(image_url, result.getFrom_user());
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}
+					Result r = (Result) tweetResult.get(i);
 
-				return null;
-			}
+					final Bitmap bm = decodeSampledBitmapFromFile(r.getFrom_user(), 40, 40);
 
-			@Override
-			protected void onPostExecute(Void v) {
-				// Clear Map first
-				map.clear();
-				map.animateCamera(CameraUpdateFactory.zoomTo(5), 2000, null);
-				// put markers
-				if (tweetResult != null && tweetResult.isEmpty() == false) {
-					for (int i = 0; i < tweetResult.size(); i++) {
-						Result r = (Result) tweetResult.get(i);
+					if (r.getGeo() != null) {
+						// Set up markers
+						Marker marker = map.addMarker(new MarkerOptions()
+						.position(r.getGeo().getLatLng())
+						.title(r.getFrom_user())
+						.snippet(r.getText()));
+						map.setOnInfoWindowClickListener(infoClickListener);
+						map.setInfoWindowAdapter(new InfoWindowAdapter() {
 
-						final Bitmap bm = decodeSampledBitmapFromFile(r.getFrom_user(), 40, 40);
-						
-						if (r.getGeo() != null) {
-							// Set up markers
-							Marker marker = map.addMarker(new MarkerOptions()
-							.position(r.getGeo().getLatLng())
-							.title(r.getFrom_user())
-							.snippet(r.getText()));
-							map.setOnInfoWindowClickListener(infoClickListener);
-							map.setInfoWindowAdapter(new InfoWindowAdapter() {
+							@Override
+							public View getInfoWindow(Marker marker) {
 
-								@Override
-								public View getInfoWindow(Marker marker) {
+								return null;
+							}
+							// Set up Infor windows
+							@Override
+							public View getInfoContents(Marker marker) {
+								// Inflate info windows
+								View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
+								TextView username = (TextView)infoView.findViewById(R.id.textView_username);
+								//									TextView twitterId = (TextView)infoView.findViewById(R.id.textView_user);
+								TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
+								ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
+								thumbnail.setImageBitmap(decodeSampledBitmapFromFile(marker.getTitle(), 40, 40));
+								username.setText(marker.getTitle());
+								tweets.setText(marker.getSnippet());
+								return infoView;
+							}
+						});					
+						marker.showInfoWindow();
 
-									return null;
-								}
-								// Set up Infor windows
-								@Override
-								public View getInfoContents(Marker marker) {
-									// Inflate info windows
-									View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
-									TextView username = (TextView)infoView.findViewById(R.id.textView_username);
-//									TextView twitterId = (TextView)infoView.findViewById(R.id.textView_user);
-									TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
-									ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
-									thumbnail.setImageBitmap(decodeSampledBitmapFromFile(marker.getTitle(), 40, 40));
-									username.setText(marker.getTitle());
-									tweets.setText(marker.getSnippet());
-									return infoView;
-								}
-							});					
-							marker.showInfoWindow();
-							
-						} else if (r.getLocation() != null){
-							// If no geo=null, we use the location to put markers
-							Geocoder geoCoder = new Geocoder(MainActivity.this, Locale.UK);
-							List<Address> addressList;
-							try {
-								addressList = geoCoder.getFromLocationName(r.getLocation(), 1);
-								if (addressList.size() != 0) {
-									Address address = addressList.get(0);
-									double longitude = address.getLongitude();
-									double latitude = address.getLatitude();
-									Log.i(TAG, "Get Location: " + longitude + ", " + latitude);
-//									putMarkersOnMap(new LatLng(latitude, longitude), r.getFrom_user_name(), r.getText(), infoView, bm);
+					} else if (r.getLocation() != null){
+						// If no geo=null, we use the location to put markers
+						Geocoder geoCoder = new Geocoder(MainActivity.this, Locale.UK);
+						List<Address> addressList;
+						try {
+							addressList = geoCoder.getFromLocationName(r.getLocation(), 1);
+							if (addressList.size() != 0) {
+								Address address = addressList.get(0);
+								double longitude = address.getLongitude();
+								double latitude = address.getLatitude();
+								Log.i(TAG, "Get Location: " + longitude + ", " + latitude);
 
-									// Set up markers
-									Marker marker = map.addMarker(new MarkerOptions()
-									.position(new LatLng(latitude, longitude))
-									.title(r.getFrom_user())
-									.snippet(r.getText()));
-									map.setOnInfoWindowClickListener(infoClickListener);
-									map.setInfoWindowAdapter(new InfoWindowAdapter() {
-
-										@Override
-										public View getInfoWindow(Marker marker) {
-
-											return null;
-										}
-
-										@Override
-										public View getInfoContents(Marker marker) {
-											// Inflate info windows
-											View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
-											TextView username = (TextView)infoView.findViewById(R.id.textView_username);
-											TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
-											ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
-											thumbnail.setImageBitmap(decodeSampledBitmapFromFile(marker.getTitle(), 40, 40));
-											username.setText(marker.getTitle());
-											tweets.setText(marker.getSnippet());
-											return infoView;
-										}
-									});					
-									marker.showInfoWindow();
-								}
-								
-							} catch (IOException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
+								// Set up markers
+								Marker marker = map.addMarker(new MarkerOptions()
+								.position(new LatLng(latitude, longitude))
+								.title(r.getFrom_user())
+								.snippet(r.getText()));
+								map.setOnInfoWindowClickListener(infoClickListener);
+								map.setInfoWindowAdapter(new InfoWindowAdapter() {
+									@Override
+									public View getInfoWindow(Marker marker) {
+										return null;
+									}
+									@Override
+									public View getInfoContents(Marker marker) {
+										// Inflate info windows
+										View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
+										TextView username = (TextView)infoView.findViewById(R.id.textView_username);
+										TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
+										ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
+										thumbnail.setImageBitmap(decodeSampledBitmapFromFile(marker.getTitle(), 40, 40));
+										username.setText(marker.getTitle());
+										tweets.setText(marker.getSnippet());
+										return infoView;
+									}
+								});
+								marker.showInfoWindow();
 							}
 
+						} catch (IOException e) {
+							// 
+							e.printStackTrace();
 						}
 					}
 				}
-				
-
 			}
-			
-			// Handle the clicks on info window
-			OnInfoWindowClickListener infoClickListener = new OnInfoWindowClickListener() {
-				
-				@Override
-				public void onInfoWindowClick(Marker marker) {
-					TweetDialog dialog = new TweetDialog();
-					// Create a bundel to pass the info to tweets dialog
-					// We'll decode the user's profile image later in tweets dialog
-					Bundle args = new Bundle();
-					args.putString("username", marker.getTitle());
-					args.putString("tweets", marker.getSnippet());
-					dialog.setArguments(args);
-					dialog.show(getSupportFragmentManager(), "");
-				}
-			};
-			
+		}
+	};
 
-//			/**
-//			 * 
-//			 * @param position
-//			 * @param title
-//			 * @param snippet
-//			 * @param view
-//			 * @param bm
-//			 */
-//			private void putMarkersOnMap(LatLng position, String title, String snippet, final View view, final Bitmap bm) {
-//				// Set up markers
-//				Marker marker = map.addMarker(new MarkerOptions()
-//				.position(position)
-//				.title(title)
-//				.snippet(snippet));
-//				map.setInfoWindowAdapter(new InfoWindowAdapter() {
-//
-//					@Override
-//					public View getInfoWindow(Marker marker) {
-//
-//						return null;
-//					}
-//
-//					@Override
-//					public View getInfoContents(Marker marker) {
-//						TextView username = (TextView)view.findViewById(R.id.textView_username);
-//						TextView tweets = (TextView)view.findViewById(R.id.textView_tweets);
-//						ImageView thumbnail = (ImageView)view.findViewById(R.id.imageView_profile_thumb);
-//						thumbnail.setImageBitmap(bm);
-//						username.setText(marker.getTitle());
-//						tweets.setText(marker.getSnippet());
-//						return view;
-//					}
-//				});					
-//				marker.showInfoWindow();
-//			}
+	// Handle the clicks on info window
+	OnInfoWindowClickListener infoClickListener = new OnInfoWindowClickListener() {
 
+		@Override
+		public void onInfoWindowClick(Marker marker) {
+			TweetDialog dialog = new TweetDialog();
+			// Create a bundel to pass the info to tweets dialog
+			// We'll decode the user's profile image later in tweets dialog
+			Bundle args = new Bundle();
+			args.putString("username", marker.getTitle());
+			args.putString("tweets", marker.getSnippet());
+			dialog.setArguments(args);
+			dialog.show(getSupportFragmentManager(), "");
+		}
+	};
 
-			private Bitmap decodeSampledBitmapFromFile(String filename, int reqWidth, int reqHeight) {
-				Bitmap bm = null;
-				File cachePath;
-				if (getExternalFilesDir(null) != null) {
-					cachePath = getExternalFilesDir(null); // Priorly use External Cache
-				} else {
-					cachePath = getFilesDir();// Use Internal cache instead if external one is not available
-				}
-				File file = new File(cachePath, filename);
-				if (file != null) {
-					// First decode with inJustDecodeBounds=true to check dimensions
-					final BitmapFactory.Options options = new BitmapFactory.Options();
-					options.inJustDecodeBounds = true;
-					BitmapFactory.decodeFile(file.getAbsolutePath(), options);
+	private Bitmap decodeSampledBitmapFromFile(String filename, int reqWidth, int reqHeight) {
+		Bitmap bm = null;
+		File cachePath;
+		if (getExternalFilesDir(null) != null) {
+			cachePath = getExternalFilesDir(null); // Priorly use External Cache
+		} else {
+			cachePath = getFilesDir();// Use Internal cache instead if external one is not available
+		}
+		File file = new File(cachePath, filename);
+		if (file != null) {
+			// First decode with inJustDecodeBounds=true to check dimensions
+			final BitmapFactory.Options options = new BitmapFactory.Options();
+			options.inJustDecodeBounds = true;
+			BitmapFactory.decodeFile(file.getAbsolutePath(), options);
 
-					// Calculate inSampleSize
-					options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
+			// Calculate inSampleSize
+			options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
 
-					// Decode bitmap with inSampleSize set
-					options.inJustDecodeBounds = false;
-					bm = BitmapFactory.decodeFile(file.getAbsolutePath(), options); 
-				}
-				return bm;
+			// Decode bitmap with inSampleSize set
+			options.inJustDecodeBounds = false;
+			bm = BitmapFactory.decodeFile(file.getAbsolutePath(), options); 
+		}
+		return bm;
+	}
+
+	public int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
+		// Raw height and width of image
+		final int height = options.outHeight;
+		final int width = options.outWidth;
+		int inSampleSize = 1;
+
+		if (height > reqHeight || width > reqWidth) {
+			if (width > height) {
+				inSampleSize = Math.round((float)height / (float)reqHeight);   
+			} else {
+				inSampleSize = Math.round((float)width / (float)reqWidth);   
 			}
+		}
+		return inSampleSize;   
+	}
 
-			public int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
-				// Raw height and width of image
-				final int height = options.outHeight;
-				final int width = options.outWidth;
-				int inSampleSize = 1;
+	/**
+	 * Download file from given URL
+	 * @param urlString the URL of file to be downloaded
+	 * @return downloaded file
+	 * @throws IOException
+	 */
+	private File downloadUrl(URL url, String filename) throws IOException {
+		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+		conn.setReadTimeout(15000 /* milliseconds */);
+		conn.setConnectTimeout(20000 /* milliseconds */);
+		conn.setRequestMethod("GET");
+		conn.setDoInput(true);
+		// Starts the query
+		conn.connect();
+		InputStream stream = conn.getInputStream();
+		File cacheDir;
+		if (getExternalFilesDir(null) != null) {
+			cacheDir = getExternalFilesDir(null); // Priorly use External Cache
+		} else {
+			cacheDir = getFilesDir();// Use Internal cache instead if external one is not available
+		}
+		File cache = new File(cacheDir, filename);
+		FileOutputStream fos = new FileOutputStream(cache);
+		byte[] buffer = new byte[1024];
+		int bufferLength = 0;
+		while ((bufferLength = stream.read(buffer)) > 0) {
+			fos.write(buffer, 0, bufferLength);
+		}
+		fos.flush();
+		fos.close();
+		return cache;
+	}
 
-				if (height > reqHeight || width > reqWidth) {
-					if (width > height) {
-						inSampleSize = Math.round((float)height / (float)reqHeight);   
-					} else {
-						inSampleSize = Math.round((float)width / (float)reqWidth);   
-					}   
-				}
+	/**
+	 * Check network connectivity.
+	 * @return true if the current network is connected.
+	 */
+	private boolean isNetworkConnected() {
+		ConnectivityManager cm = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+		NetworkInfo ni = cm.getActiveNetworkInfo();
+		if (ni != null && ni.isConnected()) {
+			return true;
+		} else {
+			return false;
+		}
 
-				return inSampleSize;   
+	}
+
+	/** 
+	 * Checks if external storage is available for read and write
+	 * @return true if external storage is available for read & write
+	 */
+	public boolean isExternalStorageWritable() {
+		String state = Environment.getExternalStorageState();
+		if (Environment.MEDIA_MOUNTED.equals(state)) {
+			return true;
+		}
+		return false;
+	}
+
+	/** 
+	 * Checks if external storage is available to at least read
+	 * @return true if external storage is readable
+	 */
+	public boolean isExternalStorageReadable() {
+		String state = Environment.getExternalStorageState();
+		if (Environment.MEDIA_MOUNTED.equals(state) ||
+				Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
+			return true;
+		}
+		return false;
+	}
+
+
+
+
+	private void doOauth() {
+		if (isTwitterLoggedInAlready() == false) {
+			try { 
+				httpOauthConsumer = new CommonsHttpOAuthConsumer(TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET); 
+				// Avoid the DefaultOAuthProvider which works not well with the commons library
+				httpOauthprovider = new CommonsHttpOAuthProvider("https://api.twitter.com/oauth/request_token", 
+						"https://api.twitter.com/oauth/access_token", 
+						"https://api.twitter.com/oauth/authorize"); 
+				String authUrl = httpOauthprovider.retrieveRequestToken(httpOauthConsumer, TWITTER_CALLBACK_URL); 
+
+				this.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))); 
+			} catch (Exception e) {
+
+				e.printStackTrace();
 			}
-
-			/**
-			 * Download file from given URL
-			 * @param urlString the URL of file to be downloaded
-			 * @return downloaded file
-			 * @throws IOException
-			 */
-			private File downloadUrl(URL url, String filename) throws IOException {
-				//	        URL url = new URL(urlString);
-				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-				conn.setReadTimeout(15000 /* milliseconds */);
-				conn.setConnectTimeout(20000 /* milliseconds */);
-				conn.setRequestMethod("GET");
-				conn.setDoInput(true);
-				// Starts the query
-				conn.connect();
-				InputStream stream = conn.getInputStream();     
-				//	        File cacheDir = getStorageDir(getApplicationContext());
-				File cacheDir;
-				if (getExternalFilesDir(null) != null) {
-					cacheDir = getExternalFilesDir(null); // Priorly use External Cache
-				} else {
-					cacheDir = getFilesDir();// Use Internal cache instead if external one is not available
-				}
-				File cache = new File(cacheDir, filename);
-				FileOutputStream fos = new FileOutputStream(cache);
-				byte[] buffer = new byte[1024];
-				int bufferLength = 0;
-				while ((bufferLength = stream.read(buffer)) > 0) {
-					fos.write(buffer, 0, bufferLength);
-				}	            
-				fos.flush();
-				fos.close();
-				return cache;
-			}
-
-			/**
-			 * Check network connectivity.
-			 * @return true if the current network is connected.
-			 */
-			private boolean isNetworkConnected() {
-				ConnectivityManager cm = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
-				NetworkInfo ni = cm.getActiveNetworkInfo();
-				if (ni != null && ni.isConnected()) {
-					return true;
-				} else {
-					return false;
-				}
-
-			}
-
-			/** 
-			 * Checks if external storage is available for read and write
-			 * @return true if external storage is available for read & write
-			 */
-			public boolean isExternalStorageWritable() {
-				String state = Environment.getExternalStorageState();
-				if (Environment.MEDIA_MOUNTED.equals(state)) {
-					return true;
-				}
-				return false;
-			}
-
-			/** 
-			 * Checks if external storage is available to at least read
-			 * @return true if external storage is readable
-			 */
-			public boolean isExternalStorageReadable() {
-				String state = Environment.getExternalStorageState();
-				if (Environment.MEDIA_MOUNTED.equals(state) ||
-						Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
-					return true;
-				}
-				return false;
-			}
-
+		} else {
+			Log.d(TAG, "Twitter already authorised.");
+			return;
 		}
 	}
-	
-	private void doOauth() { 
-		try { 
-			httpOauthConsumer = new CommonsHttpOAuthConsumer(TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET); 
-			httpOauthprovider = new CommonsHttpOAuthProvider("https://api.twitter.com/oauth/request_token", 
-					"https://api.twitter.com/oauth/access_token", 
-					"https://api.twitter.com/oauth/authorize"); 
-			String authUrl = 
-					httpOauthprovider.retrieveRequestToken(httpOauthConsumer, TWITTER_CALLBACK_URL); 
 
-			this.startActivity(new Intent(Intent.ACTION_VIEW, 
-					Uri.parse(authUrl))); 
-		} catch (Exception e) {
-//			Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
-			e.printStackTrace();
-		}
-	}
-	
 	/**
 	 * Check user already logged in your application using twitter Login flag is
 	 * fetched from Shared Preferences
@@ -1015,4 +938,5 @@ public class MainActivity extends SherlockFragmentActivity {
 		// return twitter login status from Shared Preferences
 		return pref.getBoolean(PREF_KEY_TWITTER_LOGIN, false);
 	}
+
 }
