@@ -12,9 +12,12 @@ import java.util.List;
 import java.util.Locale;
 
 import oauth.signpost.OAuthProvider;
-import oauth.signpost.basic.DefaultOAuthProvider;
 import oauth.signpost.commonshttp.CommonsHttpOAuthConsumer;
 import oauth.signpost.commonshttp.CommonsHttpOAuthProvider;
+import oauth.signpost.exception.OAuthCommunicationException;
+import oauth.signpost.exception.OAuthExpectationFailedException;
+import oauth.signpost.exception.OAuthMessageSignerException;
+import oauth.signpost.exception.OAuthNotAuthorizedException;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -52,9 +55,11 @@ import android.util.JsonReader;
 import android.util.JsonToken;
 import android.util.Log;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.RadioButton;
 import android.widget.SearchView;
@@ -91,6 +96,7 @@ public class MainActivity extends SherlockFragmentActivity {
 	private RadioButton radio_km;
 	private RadioButton radio_mi;
 	private Spinner spinner_language;
+	private Button button_auth;
 
 	//	private static Handler mHandler;
 	private LocationManager mLocationManager;
@@ -106,8 +112,10 @@ public class MainActivity extends SherlockFragmentActivity {
 	private static final String PREF_KEY_OAUTH_SECRET = "oauth_token_secret";
 	private static final String PREF_KEY_TWITTER_LOGIN = "isTwitterLogedIn";
 
-	private CommonsHttpOAuthConsumer httpOauthConsumer; 
-	private OAuthProvider httpOauthprovider;
+	private CommonsHttpOAuthConsumer httpOauthConsumer = new CommonsHttpOAuthConsumer(TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET); 
+	private OAuthProvider httpOauthprovider = new CommonsHttpOAuthProvider("https://api.twitter.com/oauth/request_token", 
+			"https://api.twitter.com/oauth/access_token", 
+			"https://api.twitter.com/oauth/authorize");
 	static final String TWITTER_CALLBACK_URL = "oauth://ubercheckout";
 	static String TWITTER_CONSUMER_KEY = "mcz7i4BDru2TE1LoTWbQ";
 	static String TWITTER_CONSUMER_SECRET = "xl0HHTUToe5860H4SikYcmi2bL38gqdUmUAAlJ7SeU8";
@@ -149,7 +157,8 @@ public class MainActivity extends SherlockFragmentActivity {
 		textView_radius = (TextView)menu.findViewById(R.id.textView_radius);
 		radio_km = (RadioButton)menu.findViewById(R.id.radio_km);
 		radio_mi = (RadioButton)menu.findViewById(R.id.radio_mi);
-
+		button_auth = (Button)menu.findViewById(R.id.button_auth);
+		
 		// Set up the Language Spinner
 		spinner_language = (Spinner) findViewById(R.id.spinner_language);
 
@@ -192,13 +201,10 @@ public class MainActivity extends SherlockFragmentActivity {
 			@Override
 			public void onStopTrackingTouch(SeekBar seekBar) {
 				seekBar.getProgress();
-
 			}
 
 			@Override
 			public void onStartTrackingTouch(SeekBar seekBar) {
-				// TODO Auto-generated method stub
-
 			}
 
 			@Override
@@ -209,7 +215,15 @@ public class MainActivity extends SherlockFragmentActivity {
 				}
 			}
 		});
-
+		
+		// Set up the OAuth button
+		button_auth.setOnClickListener(new OnClickListener() {
+			
+			@Override
+			public void onClick(View v) {
+				oAuth.execute();
+			}
+		});
 	}
 
 
@@ -232,9 +246,104 @@ public class MainActivity extends SherlockFragmentActivity {
 	@Override
 	protected void onResume() {
 		super.onResume();
-
-
+		Uri uri = getIntent().getData();
+		if (isTwitterLoggedInAlready() == false) {
+			//Check if you got NewIntent event due to Twitter Call back only 
+			if (uri != null && uri.toString().startsWith(TWITTER_CALLBACK_URL)) { 
+				String verifier = uri.getQueryParameter(oauth.signpost.OAuth.OAUTH_VERIFIER); 
+				Log.d(TAG, "Verifier: " + verifier);
+				RetrieveAccessTokenTask.execute(verifier);
+//				try {
+//					String token = pref.getString("request_token", "");
+//					String tokenSecret = pref.getString("request_token_secret", "");
+//					// Set request token and request secret
+//					httpOauthConsumer.setTokenWithSecret(token, tokenSecret);
+//					// this will populate token and token_secret in consumer 
+//					httpOauthprovider.retrieveAccessToken(httpOauthConsumer, verifier); 
+//
+//					String userKey = httpOauthConsumer.getToken(); 
+//					String userSecret = httpOauthConsumer.getConsumerSecret(); 
+//					Log.d(TAG, "Got it: " + userKey + userSecret);
+//
+//					AccessToken accessToken = new AccessToken(httpOauthConsumer.getToken(), httpOauthConsumer.getConsumerSecret()); 
+//
+//					twitter = new TwitterFactory().getInstance();
+//					twitter.setOAuthConsumer(TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET); 
+//
+//					twitter.setOAuthAccessToken(accessToken);
+//
+//					SharedPreferences.Editor e = pref.edit();
+//
+//					// After getting access token, access token secret
+//					// store them in application preferences
+//					e.putString(PREF_KEY_OAUTH_TOKEN, accessToken.getToken());
+//					e.putString(PREF_KEY_OAUTH_SECRET, accessToken.getTokenSecret());
+//
+//					// Store login status - true
+//					e.putBoolean(PREF_KEY_TWITTER_LOGIN, true);
+//					e.commit(); // save changes
+//
+//					Log.d(TAG, "Twitter OAuth Token > " + accessToken.getToken());
+//				} catch (Exception e) {
+//					e.printStackTrace();
+//				}
+			}
+		}
 	}
+	
+	AsyncTask<String, Void, Void> RetrieveAccessTokenTask = new AsyncTask<String, Void, Void>(){
+
+		@Override
+		protected Void doInBackground(String... verifiers) {
+			String token = pref.getString("request_token", "");
+			String tokenSecret = pref.getString("request_token_secret", "");
+			Log.d(TAG, "Request Token & Secret" + token + tokenSecret);
+			// Set request token and request secret
+			httpOauthConsumer.setTokenWithSecret(token, tokenSecret);
+			// this will populate token and token_secret in consumer 
+			try {
+				httpOauthprovider.retrieveAccessToken(httpOauthConsumer, verifiers[0]);
+			} catch (OAuthMessageSignerException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			} catch (OAuthNotAuthorizedException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			} catch (OAuthExpectationFailedException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			} catch (OAuthCommunicationException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			} 
+
+			String userKey = httpOauthConsumer.getToken(); 
+			String userSecret = httpOauthConsumer.getConsumerSecret(); 
+			Log.d(TAG, "Got it: " + userKey + userSecret);
+
+			AccessToken accessToken = new AccessToken(httpOauthConsumer.getToken(), httpOauthConsumer.getConsumerSecret()); 
+
+			twitter = new TwitterFactory().getInstance();
+			twitter.setOAuthConsumer(TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET); 
+
+			twitter.setOAuthAccessToken(accessToken);
+
+			SharedPreferences.Editor e = pref.edit();
+
+			// After getting access token, access token secret
+			// store them in application preferences
+			e.putString(PREF_KEY_OAUTH_TOKEN, accessToken.getToken());
+			e.putString(PREF_KEY_OAUTH_SECRET, accessToken.getTokenSecret());
+
+			// Store login status - true
+			e.putBoolean(PREF_KEY_TWITTER_LOGIN, true);
+			e.commit(); // save changes
+
+			Log.d(TAG, "Twitter OAuth Token > " + accessToken.getToken());
+			return null;
+		}
+		
+	};
 
 	@Override
 	protected void onStop() {
@@ -256,46 +365,6 @@ public class MainActivity extends SherlockFragmentActivity {
 		//		if (Intent.ACTION_VIEW.equals("x-ubercheckout-oauth-twitter")) {
 		//			Log.d(TAG, "Twitter Callback");
 		//		}
-
-		Uri uri = intent.getData();
-		if (isTwitterLoggedInAlready() == false) {
-			//Check if you got NewIntent event due to Twitter Call back only 
-			if (uri != null && uri.toString().startsWith(TWITTER_CALLBACK_URL)) { 
-				String verifier = uri.getQueryParameter(oauth.signpost.OAuth.OAUTH_VERIFIER); 
-				Toast.makeText(this, verifier, Toast.LENGTH_LONG).show(); 
-				try { 
-					// this will populate token and token_secret in consumer 
-					httpOauthprovider.retrieveAccessToken(httpOauthConsumer, verifier); 
-
-					String userKey = httpOauthConsumer.getToken(); 
-					String userSecret = httpOauthConsumer.getConsumerSecret(); 
-					Toast.makeText(this, userKey, Toast.LENGTH_LONG).show(); 
-					Toast.makeText(this, userSecret, Toast.LENGTH_LONG).show(); 
-
-					AccessToken accessToken = new AccessToken(httpOauthConsumer.getToken(), httpOauthConsumer.getConsumerSecret()); 
-
-					twitter = new TwitterFactory().getInstance();
-					twitter.setOAuthConsumer(TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET); 
-
-					twitter.setOAuthAccessToken(accessToken);
-
-					SharedPreferences.Editor e = pref.edit();
-
-					// After getting access token, access token secret
-					// store them in application preferences
-					e.putString(PREF_KEY_OAUTH_TOKEN, accessToken.getToken());
-					e.putString(PREF_KEY_OAUTH_SECRET, accessToken.getTokenSecret());
-
-					// Store login status - true
-					e.putBoolean(PREF_KEY_TWITTER_LOGIN, true);
-					e.commit(); // save changes
-
-					Log.d(TAG, "Twitter OAuth Token > " + accessToken.getToken());
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-		}
 	}
 
 	@Override
@@ -344,7 +413,7 @@ public class MainActivity extends SherlockFragmentActivity {
 			Log.i(TAG, query);
 			if (isTwitterLoggedInAlready() == false) {
 				// Do OAuth
-				oAuth.execute();
+//				oAuth.execute();
 			} else {
 				PerformSearch.execute(query);
 			}
@@ -352,6 +421,7 @@ public class MainActivity extends SherlockFragmentActivity {
 
 	}
 
+	// We need to use separate thread to handle the network operation 
 	AsyncTask<Void, Void, Void> oAuth = new AsyncTask<Void, Void, Void>() {
 
 		@Override
@@ -362,7 +432,7 @@ public class MainActivity extends SherlockFragmentActivity {
 
 		@Override
 		protected void onPostExecute(Void v) {
-			PerformSearch.execute(query);
+//			PerformSearch.execute(query);
 		}
 
 	};
@@ -912,13 +982,19 @@ public class MainActivity extends SherlockFragmentActivity {
 	private void doOauth() {
 		if (isTwitterLoggedInAlready() == false) {
 			try { 
-				httpOauthConsumer = new CommonsHttpOAuthConsumer(TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET); 
+//				httpOauthConsumer = new CommonsHttpOAuthConsumer(TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET); 
 				// Avoid the DefaultOAuthProvider which works not well with the commons library
-				httpOauthprovider = new CommonsHttpOAuthProvider("https://api.twitter.com/oauth/request_token", 
-						"https://api.twitter.com/oauth/access_token", 
-						"https://api.twitter.com/oauth/authorize"); 
+//				httpOauthprovider = new CommonsHttpOAuthProvider("https://api.twitter.com/oauth/request_token", 
+//						"https://api.twitter.com/oauth/access_token", 
+//						"https://api.twitter.com/oauth/authorize"); 
 				String authUrl = httpOauthprovider.retrieveRequestToken(httpOauthConsumer, TWITTER_CALLBACK_URL); 
-
+				
+				// Persist the request token and request token secret
+				SharedPreferences.Editor editor = pref.edit();
+				editor.putString("request_token", httpOauthConsumer.getToken());
+				editor.putString("request_token_secret", httpOauthConsumer.getTokenSecret());
+				editor.commit();
+				
 				this.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))); 
 			} catch (Exception e) {
 
