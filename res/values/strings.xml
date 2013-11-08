@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <resources>
+
     <string name="app_name">Checkout</string>
     <string name="action_options">Options</string>
     <string name="hello_world">Hello world!</string>
     <string name="search_hint">Enter Keywords</string>
     <string name="title_search">Search Local Tweets</string>
     <string name="app_label">Über Checkout</string>
+
     <string-array name="languages_array">
         <item>Auto</item>
         <item>Chinese</item>
@@ -17,6 +19,7 @@
         <item>mi</item>
         <item>km</item>
     </string-array>
+
     <string name="title_radius">Search Distance</string>
     <string name="title_language">Search Language</string>
     <string name="title_location">Search Location</string>
@@ -24,4 +27,7 @@
     <string name="title_search_keywords">Key Words</string>
     <string name="radio_title_km">km</string>
     <string name="radio_title_mi">mi</string>
+    <string name="drawer_open">open</string>
+    <string name="drawer_close">close</string>
+
 </resources>

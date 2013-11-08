@@ -37,6 +37,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.location.Address;
@@ -51,6 +52,8 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
+import android.support.v4.app.ActionBarDrawerToggle;
+import android.support.v4.widget.DrawerLayout;
 import android.util.JsonReader;
 import android.util.JsonToken;
 import android.util.Log;
@@ -67,10 +70,10 @@ import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.actionbarsherlock.app.SherlockFragmentActivity;
 import com.actionbarsherlock.view.Menu;
+import com.actionbarsherlock.view.MenuItem;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.GoogleMap.InfoWindowAdapter;
@@ -79,7 +82,6 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.jeremyfeinstein.slidingmenu.lib.SlidingMenu;
 import com.yeyaxi.android.ubercheckout.utilities.Constant;
 
 /**
@@ -98,6 +100,11 @@ public class MainActivity extends SherlockFragmentActivity {
 	private Spinner spinner_language;
 	private Button button_auth;
 
+	private DrawerLayout mDrawerLayout;
+	private ActionBarDrawerToggle mDrawerToggle;
+	private View mainMapView;
+	private View menuView;
+	
 	//	private static Handler mHandler;
 	private LocationManager mLocationManager;
 	//	private static final int SEARCH_TWEETS = 2;
@@ -126,10 +133,33 @@ public class MainActivity extends SherlockFragmentActivity {
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_main);
+		setContentView(R.layout.drawer_main);
 
 		pref = getSharedPreferences("pref", MODE_PRIVATE);
 
+		mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
+		mainMapView = (View) findViewById(R.id.content_frame);
+		menuView = (View) findViewById(R.id.left_drawer);
+		
+		mDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout,
+				R.drawable.ic_drawer, R.string.drawer_open, R.string.drawer_close) {
+
+			/** Called when a drawer has settled in a completely closed state. */
+			public void onDrawerClosed(View view) {
+				getActionBar().setTitle(getTitle());
+				invalidateOptionsMenu(); // creates call to onPrepareOptionsMenu()
+			}
+
+			/** Called when a drawer has settled in a completely open state. */
+			public void onDrawerOpened(View drawerView) {
+				getActionBar().setTitle("Options");
+				invalidateOptionsMenu(); // creates call to onPrepareOptionsMenu()
+			}
+		};
+
+		// Set the drawer toggle as the DrawerListener
+		mDrawerLayout.setDrawerListener(mDrawerToggle);
+		
 		//Set up map view
 		map = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map)).getMap();
 
@@ -137,27 +167,17 @@ public class MainActivity extends SherlockFragmentActivity {
 
 		mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
-		// Sliding Menu settings
-		SlidingMenu menu = new SlidingMenu(this);
-		menu.setMode(SlidingMenu.LEFT);
-		// Sliding from margin will open the menu
-		menu.setTouchModeAbove(SlidingMenu.TOUCHMODE_MARGIN);
-		menu.setShadowWidthRes(R.dimen.shadow_width);
-		menu.setShadowDrawable(R.drawable.shadow);
-		menu.setBehindOffsetRes(R.dimen.slidingmenu_offset);
-		menu.setFadeDegree(0.35f);
-		menu.attachToActivity(this, SlidingMenu.SLIDING_CONTENT);
-		menu.setMenu(R.layout.slide_menu);
 
 		// Set ActionBarSherlock
 		getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-
+		getSupportActionBar().setHomeButtonEnabled(true);
+		
 		// Set up View
-		seekBar_radius = (SeekBar)menu.findViewById(R.id.seekBar_radius);
-		textView_radius = (TextView)menu.findViewById(R.id.textView_radius);
-		radio_km = (RadioButton)menu.findViewById(R.id.radio_km);
-		radio_mi = (RadioButton)menu.findViewById(R.id.radio_mi);
-		button_auth = (Button)menu.findViewById(R.id.button_auth);
+		seekBar_radius = (SeekBar)menuView.findViewById(R.id.seekBar_radius);
+		textView_radius = (TextView)menuView.findViewById(R.id.textView_radius);
+		radio_km = (RadioButton)menuView.findViewById(R.id.radio_km);
+		radio_mi = (RadioButton)menuView.findViewById(R.id.radio_mi);
+		button_auth = (Button)menuView.findViewById(R.id.button_auth);
 		
 		// Set up the Language Spinner
 		spinner_language = (Spinner) findViewById(R.id.spinner_language);
@@ -226,6 +246,35 @@ public class MainActivity extends SherlockFragmentActivity {
 		});
 	}
 
+	@Override
+	protected void onPostCreate(Bundle savedInstanceState) {
+		super.onPostCreate(savedInstanceState);
+		// Sync the toggle state after onRestoreInstanceState has occurred.
+		mDrawerToggle.syncState();
+	}
+
+	@Override
+	public void onConfigurationChanged(Configuration newConfig) {
+		super.onConfigurationChanged(newConfig);
+		mDrawerToggle.onConfigurationChanged(newConfig);
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		// Pass the event to ActionBarDrawerToggle, if it returns
+		// true, then it has handled the app icon touch event
+		if (item.getItemId() == android.R.id.home) {
+
+			if (mDrawerLayout.isDrawerOpen(menuView)) {
+				mDrawerLayout.closeDrawer(menuView);
+			} else {
+				mDrawerLayout.openDrawer(menuView);
+			}
+		}
+		// Handle your other action bar items...
+
+		return super.onOptionsItemSelected(item);
+	}
 
 	@Override
 	protected void onStart() {
