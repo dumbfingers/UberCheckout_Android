@@ -102,7 +102,7 @@ public class MainActivity extends SherlockFragmentActivity {
 
 	private DrawerLayout mDrawerLayout;
 	private ActionBarDrawerToggle mDrawerToggle;
-	private View mainMapView;
+//	private View mainMapView;
 	private View menuView;
 	
 	//	private static Handler mHandler;
@@ -112,7 +112,6 @@ public class MainActivity extends SherlockFragmentActivity {
 	private static final int TEN_MINUTES = 1000 * 60 * 10;
 	private static final int TEN_METERS = 10;
 	private static final int TWO_MINUTES = 1000 * 60 * 2;
-	private static GoogleMap map;
 	private float[] coords = new float[2];// coords[0] is latitude, coords[1] is longitude
 
 	private static final String PREF_KEY_OAUTH_TOKEN = "oauth_token";
@@ -138,8 +137,14 @@ public class MainActivity extends SherlockFragmentActivity {
 		pref = getSharedPreferences("pref", MODE_PRIVATE);
 
 		mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
-		mainMapView = (View) findViewById(R.id.content_frame);
+//		mainMapView = (View) findViewById(R.id.content_frame);
 		menuView = (View) findViewById(R.id.left_drawer);
+		
+		// Launch the map fragment
+		getSupportFragmentManager()
+			.beginTransaction()
+			.replace(R.id.content_frame, new MapViewFragment(), "MapView")
+			.commit();
 		
 		mDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout,
 				R.drawable.ic_drawer, R.string.drawer_open, R.string.drawer_close) {
@@ -160,8 +165,7 @@ public class MainActivity extends SherlockFragmentActivity {
 		// Set the drawer toggle as the DrawerListener
 		mDrawerLayout.setDrawerListener(mDrawerToggle);
 		
-		//Set up map view
-		map = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map)).getMap();
+
 
 		//		mHandler = new TaskHandler(this); 
 
@@ -280,16 +284,16 @@ public class MainActivity extends SherlockFragmentActivity {
 	protected void onStart() {
 		super.onStart();
 
-		LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-		final boolean gpsEnabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
-
-		if (!gpsEnabled) {
-			Dialog dialog = enableGpsDialog(this);
-			dialog.show();
-		}
+//		LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+//		final boolean gpsEnabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
+//
+//		if (!gpsEnabled) {
+//			Dialog dialog = enableGpsDialog(this);
+//			dialog.show();
+//		}
 
 		// Locate the user automatically as the app starts
-		getCurrentLocation();
+//		getCurrentLocation();
 	}
 
 	@Override
@@ -302,40 +306,6 @@ public class MainActivity extends SherlockFragmentActivity {
 				String verifier = uri.getQueryParameter(oauth.signpost.OAuth.OAUTH_VERIFIER); 
 				Log.d(TAG, "Verifier: " + verifier);
 				RetrieveAccessTokenTask.execute(verifier);
-//				try {
-//					String token = pref.getString("request_token", "");
-//					String tokenSecret = pref.getString("request_token_secret", "");
-//					// Set request token and request secret
-//					httpOauthConsumer.setTokenWithSecret(token, tokenSecret);
-//					// this will populate token and token_secret in consumer 
-//					httpOauthprovider.retrieveAccessToken(httpOauthConsumer, verifier); 
-//
-//					String userKey = httpOauthConsumer.getToken(); 
-//					String userSecret = httpOauthConsumer.getConsumerSecret(); 
-//					Log.d(TAG, "Got it: " + userKey + userSecret);
-//
-//					AccessToken accessToken = new AccessToken(httpOauthConsumer.getToken(), httpOauthConsumer.getConsumerSecret()); 
-//
-//					twitter = new TwitterFactory().getInstance();
-//					twitter.setOAuthConsumer(TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET); 
-//
-//					twitter.setOAuthAccessToken(accessToken);
-//
-//					SharedPreferences.Editor e = pref.edit();
-//
-//					// After getting access token, access token secret
-//					// store them in application preferences
-//					e.putString(PREF_KEY_OAUTH_TOKEN, accessToken.getToken());
-//					e.putString(PREF_KEY_OAUTH_SECRET, accessToken.getTokenSecret());
-//
-//					// Store login status - true
-//					e.putBoolean(PREF_KEY_TWITTER_LOGIN, true);
-//					e.commit(); // save changes
-//
-//					Log.d(TAG, "Twitter OAuth Token > " + accessToken.getToken());
-//				} catch (Exception e) {
-//					e.printStackTrace();
-//				}
 			}
 		}
 	}
@@ -398,8 +368,8 @@ public class MainActivity extends SherlockFragmentActivity {
 	protected void onStop() {
 		super.onStop();
 		// Stop listening to the Loation Providers
-		mLocationManager.removeUpdates(geoListener);
-		Log.i(TAG, "Location updates stopped.");
+//		mLocationManager.removeUpdates(geoListener);
+//		Log.i(TAG, "Location updates stopped.");
 	}
 
 	@Override
@@ -487,145 +457,37 @@ public class MainActivity extends SherlockFragmentActivity {
 	};
 
 
-	private void getCurrentLocation() {
-		// Show mapview, drop position pin
-		Location gps = requestLocationFromProvider(LocationManager.GPS_PROVIDER, 0);
-		Location aGps = requestLocationFromProvider(LocationManager.NETWORK_PROVIDER, 0);
-		// If got two location data
-		if (gps != null && aGps != null) {
-			updateUIwithLocation(getBetterLocation(gps, aGps));
-		} else if (gps != null) {
-			updateUIwithLocation(gps);
-		} else if (aGps != null) {
-			updateUIwithLocation(aGps);
-		}
-	}
+	
+	
 
-	private Location getBetterLocation(Location newLocation, Location currentLocation) {
-		if (currentLocation == null)
-			// Just use a location rather than a null location
-			return newLocation;
 
-		// Check whether the new location fix is newer or older
-		long timeDelta = newLocation.getTime() - currentLocation.getTime();
-		boolean isSignificantlyNewer = timeDelta > TWO_MINUTES;
-		boolean isSignificantlyOlder = timeDelta < -TWO_MINUTES;
-		boolean isNewer = timeDelta > 0;
 
-		// Use the new location if the time span is more than 2 mins
-		if (isSignificantlyNewer)
-			return newLocation;
-		else if (isSignificantlyOlder)
-			return currentLocation;
+	
 
-		// Check the accuracy
-		int accuracyDelta = (int) (newLocation.getAccuracy() - currentLocation.getAccuracy());
-		boolean isLessAccurate = accuracyDelta > 0;
-		boolean isMoreAccurate = accuracyDelta < 0;
-		boolean isSignificantlyLessAccurate = accuracyDelta > 200;
 
-		// Check if the providers are the same
-		boolean isFromSameProvider = isSameProvider(newLocation.getProvider(), currentLocation.getProvider());
-		if (isMoreAccurate)
-			return newLocation;
-		else if (isNewer && !isLessAccurate)
-			return newLocation;
-		else if (isNewer && !isSignificantlyLessAccurate && isFromSameProvider)
-			return newLocation;
-		mLocationManager.removeUpdates(geoListener);
-		Log.i(TAG, "Location updates stopped.");
-		return currentLocation;
-	}
 
-	/** Checks whether two providers are the same */
-	private boolean isSameProvider(String provider1, String provider2) {
-		if (provider1 == null) {
-			return provider2 == null;
-		}
-		return provider1.equals(provider2);
-	}
-
-	private Location requestLocationFromProvider(final String provider, final int errResId) {
-		Location location = null;
-		if (mLocationManager.isProviderEnabled(provider)) {
-			mLocationManager.requestLocationUpdates(provider, TEN_MINUTES, TEN_METERS, geoListener);
-			location = mLocationManager.getLastKnownLocation(provider);
-		}
-		return location;
-	}
-
-	private void updateUIwithLocation(Location location) {
-
-		new LocationUpdate().execute(location);
-	}
-
-	private final LocationListener geoListener = new LocationListener() {
-
-		@Override
-		public void onStatusChanged(String provider, int status, Bundle extras) {
-
-		}
-
-		@Override
-		public void onProviderEnabled(String provider) {
-
-		}
-
-		@Override
-		public void onProviderDisabled(String provider) {
-
-		}
-
-		@Override
-		public void onLocationChanged(Location location) {
-			updateUIwithLocation(location);
-		}
-	};
-
-	// Method to launch Settings
-	private void enableLocationSettings() {
-		Intent settingsIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-		startActivity(settingsIntent);
-	}
-
-	/**
-	 * Dialog to prompt users to enable GPS on the device.
-	 */
-	public Dialog enableGpsDialog(Context context) {
-		return new AlertDialog.Builder(context)
-		.setTitle("Enable GPS Location")
-		.setMessage("GPS not enabled, would you like to enable it?")
-		.setPositiveButton("Go Settings", new DialogInterface.OnClickListener() {
-			@Override
-			public void onClick(DialogInterface dialog, int which) {
-				enableLocationSettings();
-			}
-		})
-		.create();
-	}
-
-	private class LocationUpdate extends AsyncTask<Location, Void, LatLng> {
-
-		double coordLat, coordLng;
-		@Override
-		protected LatLng doInBackground(Location... params) {
-			coordLat = (params[0]).getLatitude();
-			coordLng = (params[0]).getLongitude();
-			LatLng location = new LatLng(coordLat, coordLng);
-			return location;
-		}
-
-		@Override
-		protected void onPostExecute(LatLng location) {
-			coords[0] = (float)coordLat;
-			coords[1] = (float)coordLng;
-			map.clear();
-			Marker m = map.addMarker(new MarkerOptions().position(location));
-			map.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 18));
-			map.animateCamera(CameraUpdateFactory.zoomTo(14), 2000, null);
-			m.setDraggable(true);
-		}
-	}
+//	private class LocationUpdate extends AsyncTask<Location, Void, LatLng> {
+//
+//		double coordLat, coordLng;
+//		@Override
+//		protected LatLng doInBackground(Location... params) {
+//			coordLat = (params[0]).getLatitude();
+//			coordLng = (params[0]).getLongitude();
+//			LatLng location = new LatLng(coordLat, coordLng);
+//			return location;
+//		}
+//
+//		@Override
+//		protected void onPostExecute(LatLng location) {
+//			coords[0] = (float)coordLat;
+//			coords[1] = (float)coordLng;
+//			map.clear();
+//			Marker m = map.addMarker(new MarkerOptions().position(location));
+//			map.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 18));
+//			map.animateCamera(CameraUpdateFactory.zoomTo(14), 2000, null);
+//			m.setDraggable(true);
+//		}
+//	}
 
 
 	/**
@@ -648,7 +510,7 @@ public class MainActivity extends SherlockFragmentActivity {
 		protected void onPostExecute(ArrayList<Result> list) {
 			super.onPostExecute(list);
 			// Put markers on the map
-			DrawTweetMarkers.execute(list);
+//			DrawTweetMarkers.execute(list);
 		}
 	};
 
@@ -782,134 +644,120 @@ public class MainActivity extends SherlockFragmentActivity {
 		return new Result(from_user, from_user_id_str, from_user_name, text, geo, location, profile_image_url);			
 	}
 
-	AsyncTask<ArrayList<Result>, Void, Void> DrawTweetMarkers = new AsyncTask<ArrayList<Result>, Void, Void>(){
-		private ArrayList<Result> tweetResult;
+//	AsyncTask<ArrayList<Result>, Void, Void> DrawTweetMarkers = new AsyncTask<ArrayList<Result>, Void, Void>(){
+//		private ArrayList<Result> tweetResult;
+//
+//		@Override
+//		protected Void doInBackground(ArrayList<Result>... params) {
+//			tweetResult = new ArrayList<Result>();
+//			tweetResult = params[0];
+//
+//			for (int i = 0; i < tweetResult.size(); i++) {
+//				Result result = (Result) tweetResult.get(i);
+//				URL image_url = result.getProfile_image_url();
+//				try {
+//					downloadUrl(image_url, result.getFrom_user());
+//				} catch (IOException e) {
+//					e.printStackTrace();
+//				}
+//			}
+//
+//			return null;
+//		}
+//
+//		@Override
+//		protected void onPostExecute(Void v) {
+//			// Clear Map first
+//			map.clear();
+//			map.animateCamera(CameraUpdateFactory.zoomTo(5), 2000, null);
+//			// put markers
+//			if (tweetResult != null && tweetResult.isEmpty() == false) {
+//				for (int i = 0; i < tweetResult.size(); i++) {
+//					Result r = (Result) tweetResult.get(i);
+//
+//					final Bitmap bm = decodeSampledBitmapFromFile(r.getFrom_user(), 40, 40);
+//
+//					if (r.getGeo() != null) {
+//						// Set up markers
+//						Marker marker = map.addMarker(new MarkerOptions()
+//						.position(r.getGeo().getLatLng())
+//						.title(r.getFrom_user())
+//						.snippet(r.getText()));
+//						map.setOnInfoWindowClickListener(infoClickListener);
+//						map.setInfoWindowAdapter(new InfoWindowAdapter() {
+//
+//							@Override
+//							public View getInfoWindow(Marker marker) {
+//
+//								return null;
+//							}
+//							// Set up Infor windows
+//							@Override
+//							public View getInfoContents(Marker marker) {
+//								// Inflate info windows
+//								View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
+//								TextView username = (TextView)infoView.findViewById(R.id.textView_username);
+//								//									TextView twitterId = (TextView)infoView.findViewById(R.id.textView_user);
+//								TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
+//								ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
+//								thumbnail.setImageBitmap(decodeSampledBitmapFromFile(marker.getTitle(), 40, 40));
+//								username.setText(marker.getTitle());
+//								tweets.setText(marker.getSnippet());
+//								return infoView;
+//							}
+//						});					
+//						marker.showInfoWindow();
+//
+//					} else if (r.getLocation() != null){
+//						// If no geo=null, we use the location to put markers
+//						Geocoder geoCoder = new Geocoder(MainActivity.this, Locale.UK);
+//						List<Address> addressList;
+//						try {
+//							addressList = geoCoder.getFromLocationName(r.getLocation(), 1);
+//							if (addressList.size() != 0) {
+//								Address address = addressList.get(0);
+//								double longitude = address.getLongitude();
+//								double latitude = address.getLatitude();
+//								Log.i(TAG, "Get Location: " + longitude + ", " + latitude);
+//
+//								// Set up markers
+//								Marker marker = map.addMarker(new MarkerOptions()
+//								.position(new LatLng(latitude, longitude))
+//								.title(r.getFrom_user())
+//								.snippet(r.getText()));
+//								map.setOnInfoWindowClickListener(infoClickListener);
+//								map.setInfoWindowAdapter(new InfoWindowAdapter() {
+//									@Override
+//									public View getInfoWindow(Marker marker) {
+//										return null;
+//									}
+//									@Override
+//									public View getInfoContents(Marker marker) {
+//										// Inflate info windows
+//										View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
+//										TextView username = (TextView)infoView.findViewById(R.id.textView_username);
+//										TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
+//										ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
+//										thumbnail.setImageBitmap(decodeSampledBitmapFromFile(marker.getTitle(), 40, 40));
+//										username.setText(marker.getTitle());
+//										tweets.setText(marker.getSnippet());
+//										return infoView;
+//									}
+//								});
+//								marker.showInfoWindow();
+//							}
+//
+//						} catch (IOException e) {
+//							// 
+//							e.printStackTrace();
+//						}
+//					}
+//				}
+//			}
+//		}
+//	};
 
-		@Override
-		protected Void doInBackground(ArrayList<Result>... params) {
-			tweetResult = new ArrayList<Result>();
-			tweetResult = params[0];
-
-			for (int i = 0; i < tweetResult.size(); i++) {
-				Result result = (Result) tweetResult.get(i);
-				URL image_url = result.getProfile_image_url();
-				try {
-					downloadUrl(image_url, result.getFrom_user());
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-
-			return null;
-		}
-
-		@Override
-		protected void onPostExecute(Void v) {
-			// Clear Map first
-			map.clear();
-			map.animateCamera(CameraUpdateFactory.zoomTo(5), 2000, null);
-			// put markers
-			if (tweetResult != null && tweetResult.isEmpty() == false) {
-				for (int i = 0; i < tweetResult.size(); i++) {
-					Result r = (Result) tweetResult.get(i);
-
-					final Bitmap bm = decodeSampledBitmapFromFile(r.getFrom_user(), 40, 40);
-
-					if (r.getGeo() != null) {
-						// Set up markers
-						Marker marker = map.addMarker(new MarkerOptions()
-						.position(r.getGeo().getLatLng())
-						.title(r.getFrom_user())
-						.snippet(r.getText()));
-						map.setOnInfoWindowClickListener(infoClickListener);
-						map.setInfoWindowAdapter(new InfoWindowAdapter() {
-
-							@Override
-							public View getInfoWindow(Marker marker) {
-
-								return null;
-							}
-							// Set up Infor windows
-							@Override
-							public View getInfoContents(Marker marker) {
-								// Inflate info windows
-								View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
-								TextView username = (TextView)infoView.findViewById(R.id.textView_username);
-								//									TextView twitterId = (TextView)infoView.findViewById(R.id.textView_user);
-								TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
-								ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
-								thumbnail.setImageBitmap(decodeSampledBitmapFromFile(marker.getTitle(), 40, 40));
-								username.setText(marker.getTitle());
-								tweets.setText(marker.getSnippet());
-								return infoView;
-							}
-						});					
-						marker.showInfoWindow();
-
-					} else if (r.getLocation() != null){
-						// If no geo=null, we use the location to put markers
-						Geocoder geoCoder = new Geocoder(MainActivity.this, Locale.UK);
-						List<Address> addressList;
-						try {
-							addressList = geoCoder.getFromLocationName(r.getLocation(), 1);
-							if (addressList.size() != 0) {
-								Address address = addressList.get(0);
-								double longitude = address.getLongitude();
-								double latitude = address.getLatitude();
-								Log.i(TAG, "Get Location: " + longitude + ", " + latitude);
-
-								// Set up markers
-								Marker marker = map.addMarker(new MarkerOptions()
-								.position(new LatLng(latitude, longitude))
-								.title(r.getFrom_user())
-								.snippet(r.getText()));
-								map.setOnInfoWindowClickListener(infoClickListener);
-								map.setInfoWindowAdapter(new InfoWindowAdapter() {
-									@Override
-									public View getInfoWindow(Marker marker) {
-										return null;
-									}
-									@Override
-									public View getInfoContents(Marker marker) {
-										// Inflate info windows
-										View infoView = getLayoutInflater().inflate(R.layout.marker_info_window, null);
-										TextView username = (TextView)infoView.findViewById(R.id.textView_username);
-										TextView tweets = (TextView)infoView.findViewById(R.id.textView_tweets);
-										ImageView thumbnail = (ImageView)infoView.findViewById(R.id.imageView_profile_thumb);
-										thumbnail.setImageBitmap(decodeSampledBitmapFromFile(marker.getTitle(), 40, 40));
-										username.setText(marker.getTitle());
-										tweets.setText(marker.getSnippet());
-										return infoView;
-									}
-								});
-								marker.showInfoWindow();
-							}
-
-						} catch (IOException e) {
-							// 
-							e.printStackTrace();
-						}
-					}
-				}
-			}
-		}
-	};
-
-	// Handle the clicks on info window
-	OnInfoWindowClickListener infoClickListener = new OnInfoWindowClickListener() {
-
-		@Override
-		public void onInfoWindowClick(Marker marker) {
-			TweetDialog dialog = new TweetDialog();
-			// Create a bundel to pass the info to tweets dialog
-			// We'll decode the user's profile image later in tweets dialog
-			Bundle args = new Bundle();
-			args.putString("username", marker.getTitle());
-			args.putString("tweets", marker.getSnippet());
-			dialog.setArguments(args);
-			dialog.show(getSupportFragmentManager(), "");
-		}
-	};
+	
 
 	private Bitmap decodeSampledBitmapFromFile(String filename, int reqWidth, int reqHeight) {
 		Bitmap bm = null;
